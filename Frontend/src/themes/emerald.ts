@@ -1,0 +1,35 @@
+import { ColorThemeDefinition } from './types';
+
+export const emeraldTheme: ColorThemeDefinition = {
+  id: 'emerald',
+  name: 'Emerald Forest',
+  description: 'Calm, natural and focused. The original AIU Workspace experience.',
+  icon: '🌿',
+  primaryRgb: '95, 191, 143',
+  light: {
+    primary: '#5FBF8F',
+    primaryHover: '#237A57',
+    accent: '#6DD6A0',
+    deep: '#14532D',
+    background: '#F3FBF7',
+    surface: '#FFFFFF',
+    surfaceSecondary: '#E8F7EF',
+    border: '#DCE9E1',
+    textPrimary: '#17211B',
+    textSecondary: '#66736B',
+    textMuted: '#8A9890',
+  },
+  dark: {
+    primary: '#5FBF8F',
+    primaryHover: '#6DD6A0',
+    accent: '#6DD6A0',
+    deep: '#14532D',
+    background: '#08120D',
+    surface: '#0E1C15',
+    surfaceSecondary: '#13261C',
+    border: '#20372B',
+    textPrimary: '#EAF7EF',
+    textSecondary: '#9BB5A5',
+    textMuted: '#6F8A7A',
+  },
+};

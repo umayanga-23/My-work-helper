@@ -1,0 +1,35 @@
+import { ColorThemeDefinition } from './types';
+
+export const roseTheme: ColorThemeDefinition = {
+  id: 'rose',
+  name: 'Rose Bloom',
+  description: 'Soft, warm and elegant. Designed for a gentle creative atmosphere.',
+  icon: '🌹',
+  primaryRgb: '231, 139, 155',
+  light: {
+    primary: '#E78B9B',
+    primaryHover: '#C95F73',
+    accent: '#F3A6B3',
+    deep: '#8F3047',
+    background: '#FFF7F8',
+    surface: '#FFFFFF',
+    surfaceSecondary: '#FCE8EC',
+    border: '#F0D6DB',
+    textPrimary: '#24181B',
+    textSecondary: '#75666A',
+    textMuted: '#9C8C91',
+  },
+  dark: {
+    primary: '#E78B9B',
+    primaryHover: '#F3A6B3',
+    accent: '#F3A6B3',
+    deep: '#8F3047',
+    background: '#160C0F',
+    surface: '#211216',
+    surfaceSecondary: '#2C171D',
+    border: '#43232B',
+    textPrimary: '#FBECEF',
+    textSecondary: '#C9A9B0',
+    textMuted: '#9C737C',
+  },
+};

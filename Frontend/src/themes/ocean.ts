@@ -1,0 +1,35 @@
+import { ColorThemeDefinition } from './types';
+
+export const oceanTheme: ColorThemeDefinition = {
+  id: 'ocean',
+  name: 'Ocean Blue',
+  description: 'Clean, calm and professional. Designed for focused development sessions.',
+  icon: '🌊',
+  primaryRgb: '96, 165, 250',
+  light: {
+    primary: '#60A5FA',
+    primaryHover: '#3B82F6',
+    accent: '#93C5FD',
+    deep: '#1D4ED8',
+    background: '#F5F9FF',
+    surface: '#FFFFFF',
+    surfaceSecondary: '#EAF3FF',
+    border: '#D8E6F5',
+    textPrimary: '#172033',
+    textSecondary: '#667085',
+    textMuted: '#8B98AA',
+  },
+  dark: {
+    primary: '#60A5FA',
+    primaryHover: '#93C5FD',
+    accent: '#93C5FD',
+    deep: '#1D4ED8',
+    background: '#08111F',
+    surface: '#0E1929',
+    surfaceSecondary: '#14243A',
+    border: '#203752',
+    textPrimary: '#EAF3FF',
+    textSecondary: '#A7BCD6',
+    textMuted: '#7189A4',
+  },
+};

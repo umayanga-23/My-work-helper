@@ -1,0 +1,643 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* =========================================================================
+     THEME 01: EMERALD FOREST (Default)
+     ========================================================================= */
+  :root,
+  [data-theme="emerald"] {
+    --color-primary: #5FBF8F;
+    --color-primary-hover: #237A57;
+    --color-primary-dark: #237A57;
+    --color-primary-deep: #14532D;
+    --color-accent: #6DD6A0;
+    --color-background: #F3FBF7;
+    --color-surface: #FFFFFF;
+    --color-surface-secondary: #E8F7EF;
+    --color-border: #DCE9E1;
+    --color-text-primary: #17211B;
+    --color-text-secondary: #66736B;
+    --color-text-muted: #8A9890;
+    --color-text: #17211B;
+    --primary-rgb: 95, 191, 143;
+  }
+
+  .dark:root,
+  .dark[data-theme="emerald"],
+  [data-theme="emerald"].dark,
+  .dark [data-theme="emerald"] {
+    --color-primary: #5FBF8F;
+    --color-primary-hover: #6DD6A0;
+    --color-primary-dark: #3FAF76;
+    --color-primary-deep: #14532D;
+    --color-accent: #6DD6A0;
+    --color-background: #08120D;
+    --color-surface: #0E1C15;
+    --color-surface-secondary: #13261C;
+    --color-border: #20372B;
+    --color-text-primary: #EAF7EF;
+    --color-text-secondary: #9BB5A5;
+    --color-text-muted: #6F8A7A;
+    --color-text: #EAF7EF;
+    --primary-rgb: 95, 191, 143;
+  }
+
+  /* =========================================================================
+     THEME 02: ROSE BLOOM (Soft Rose)
+     ========================================================================= */
+  [data-theme="rose"] {
+    --color-primary: #E78B9B;
+    --color-primary-hover: #C95F73;
+    --color-primary-dark: #C95F73;
+    --color-primary-deep: #8F3047;
+    --color-accent: #F3A6B3;
+    --color-background: #FFF7F8;
+    --color-surface: #FFFFFF;
+    --color-surface-secondary: #FCE8EC;
+    --color-border: #F0D6DB;
+    --color-text-primary: #24181B;
+    --color-text-secondary: #75666A;
+    --color-text-muted: #9C8C91;
+    --color-text: #24181B;
+    --primary-rgb: 231, 139, 155;
+  }
+
+  .dark[data-theme="rose"],
+  [data-theme="rose"].dark,
+  .dark [data-theme="rose"] {
+    --color-primary: #E78B9B;
+    --color-primary-hover: #F3A6B3;
+    --color-primary-dark: #F3A6B3;
+    --color-primary-deep: #8F3047;
+    --color-accent: #F3A6B3;
+    --color-background: #160C0F;
+    --color-surface: #211216;
+    --color-surface-secondary: #2C171D;
+    --color-border: #43232B;
+    --color-text-primary: #FBECEF;
+    --color-text-secondary: #C9A9B0;
+    --color-text-muted: #9C737C;
+    --color-text: #FBECEF;
+    --primary-rgb: 231, 139, 155;
+  }
+
+  /* =========================================================================
+     THEME 03: OCEAN BLUE (Focused Developer Blue)
+     ========================================================================= */
+  [data-theme="ocean"] {
+    --color-primary: #60A5FA;
+    --color-primary-hover: #3B82F6;
+    --color-primary-dark: #3B82F6;
+    --color-primary-deep: #1D4ED8;
+    --color-accent: #93C5FD;
+    --color-background: #F5F9FF;
+    --color-surface: #FFFFFF;
+    --color-surface-secondary: #EAF3FF;
+    --color-border: #D8E6F5;
+    --color-text-primary: #172033;
+    --color-text-secondary: #667085;
+    --color-text-muted: #8B98AA;
+    --color-text: #172033;
+    --primary-rgb: 96, 165, 250;
+  }
+
+  .dark[data-theme="ocean"],
+  [data-theme="ocean"].dark,
+  .dark [data-theme="ocean"] {
+    --color-primary: #60A5FA;
+    --color-primary-hover: #93C5FD;
+    --color-primary-dark: #93C5FD;
+    --color-primary-deep: #1D4ED8;
+    --color-accent: #93C5FD;
+    --color-background: #08111F;
+    --color-surface: #0E1929;
+    --color-surface-secondary: #14243A;
+    --color-border: #203752;
+    --color-text-primary: #EAF3FF;
+    --color-text-secondary: #A7BCD6;
+    --color-text-muted: #7189A4;
+    --color-text: #EAF3FF;
+    --primary-rgb: 96, 165, 250;
+  }
+
+  /* =========================================================================
+     THEME 04: SOFT ORANGE (Warm & Friendly)
+     ========================================================================= */
+  [data-theme="orange"] {
+    --color-primary: #F4A261;
+    --color-primary-hover: #D97732;
+    --color-primary-dark: #D97732;
+    --color-primary-deep: #9A4D16;
+    --color-accent: #FDBA74;
+    --color-background: #FFFAF5;
+    --color-surface: #FFFFFF;
+    --color-surface-secondary: #FFF0E2;
+    --color-border: #F1DED0;
+    --color-text-primary: #251B15;
+    --color-text-secondary: #766960;
+    --color-text-muted: #9B8E84;
+    --color-text: #251B15;
+    --primary-rgb: 244, 162, 97;
+  }
+
+  .dark[data-theme="orange"],
+  [data-theme="orange"].dark,
+  .dark [data-theme="orange"] {
+    --color-primary: #F4A261;
+    --color-primary-hover: #FDBA74;
+    --color-primary-dark: #FDBA74;
+    --color-primary-deep: #9A4D16;
+    --color-accent: #FDBA74;
+    --color-background: #17100A;
+    --color-surface: #21170F;
+    --color-surface-secondary: #2C1E13;
+    --color-border: #46301F;
+    --color-text-primary: #FFF2E7;
+    --color-text-secondary: #CDB39E;
+    --color-text-muted: #9D826D;
+    --color-text: #FFF2E7;
+    --primary-rgb: 244, 162, 97;
+  }
+
+  /* =========================================================================
+     THEME 05: GOLDEN SUN (Optimistic Gold)
+     ========================================================================= */
+  [data-theme="gold"] {
+    --color-primary: #EABF4F;
+    --color-primary-hover: #C99A20;
+    --color-primary-dark: #C99A20;
+    --color-primary-deep: #8A6A0A;
+    --color-accent: #F4D56B;
+    --color-background: #FFFDF3;
+    --color-surface: #FFFFFF;
+    --color-surface-secondary: #FFF7D6;
+    --color-border: #EEE4B9;
+    --color-text-primary: #242014;
+    --color-text-secondary: #746D5B;
+    --color-text-muted: #9A927D;
+    --color-text: #242014;
+    --primary-rgb: 234, 191, 79;
+  }
+
+  .dark[data-theme="gold"],
+  [data-theme="gold"].dark,
+  .dark [data-theme="gold"] {
+    --color-primary: #EABF4F;
+    --color-primary-hover: #F4D56B;
+    --color-primary-dark: #F4D56B;
+    --color-primary-deep: #8A6A0A;
+    --color-accent: #F4D56B;
+    --color-background: #151208;
+    --color-surface: #211D0D;
+    --color-surface-secondary: #2B2611;
+    --color-border: #443B1B;
+    --color-text-primary: #FFFBE8;
+    --color-text-secondary: #CFC59B;
+    --color-text-muted: #9E956E;
+    --color-text: #FFFBE8;
+    --primary-rgb: 234, 191, 79;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  }
+
+  /* Smooth Theme Transition across layout elements */
+  header, nav, aside, main, section, [data-theme-transition] {
+    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  }
+}
+
+/* =========================================================================
+   DYNAMIC SCROLLBAR (Adapts to Active Theme's Primary RGB)
+   ========================================================================= */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--primary-rgb, 95, 191, 143), 0.28);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--primary-rgb, 95, 191, 143), 0.55);
+}
+
+/* =========================================================================
+   SEAMLESS HARDCODED CLASS BRIDGE
+   Allows all existing components across the application to respond to
+   theme switching without modifying dozens of source files or breaking logic.
+   ========================================================================= */
+html:not([data-theme="emerald"]) {
+  /* -------------------------------------------------------------------------
+     1. BACKGROUNDS (Page, Surfaces & Cards)
+     ------------------------------------------------------------------------- */
+  .bg-\[\#F3FBF7\],
+  .bg-\[\#F7FAF8\],
+  .bg-\[\#F3FAF5\] {
+    background-color: var(--color-background) !important;
+  }
+  .bg-\[\#E8F7EF\],
+  .bg-\[\#ECF9F1\],
+  .bg-\[\#D5F2E2\] {
+    background-color: var(--color-surface-secondary) !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     2. BUTTONS & PRIMARY ACCENTS (Solid Primary Backgrounds)
+     ------------------------------------------------------------------------- */
+  .bg-emerald-600,
+  .bg-emerald-500,
+  .bg-emerald-700,
+  .bg-emerald-400,
+  .bg-\[\#5FBF8F\],
+  .bg-\[\#237A57\],
+  .bg-\[\#2ECC71\],
+  .bg-\[\#27AE60\],
+  .bg-\[\#219653\],
+  .bg-\[\#1E7247\],
+  .bg-brand-600,
+  .bg-brand-500 {
+    background-color: var(--color-primary) !important;
+  }
+
+  /* Button hover states */
+  .hover\:bg-emerald-500:hover,
+  .hover\:bg-emerald-600:hover,
+  .hover\:bg-emerald-700:hover,
+  .hover\:bg-\[\#237A57\]:hover,
+  .hover\:bg-\[\#5FBF8F\]:hover,
+  .hover\:bg-\[\#27AE60\]:hover,
+  .hover\:bg-\[\#219653\]:hover,
+  .hover\:bg-brand-500:hover,
+  .hover\:bg-brand-400:hover {
+    background-color: var(--color-primary-hover) !important;
+  }
+
+  /* Primary button contrast text */
+  .bg-emerald-600.text-white,
+  .bg-emerald-500.text-white,
+  .bg-emerald-700.text-white,
+  .bg-\[\#5FBF8F\].text-white,
+  .bg-\[\#2ECC71\].text-white {
+    color: #FFFFFF !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     3. SUBTLE BUTTONS, PILLS & TAGS (Opacity/Tinted Backgrounds)
+     ------------------------------------------------------------------------- */
+  .bg-emerald-500\/10,
+  .bg-emerald-500\/15,
+  .bg-emerald-500\/20,
+  .bg-emerald-500\/25,
+  .bg-emerald-50\/70,
+  .bg-emerald-400\/15,
+  .bg-emerald-500\/5 {
+    background-color: rgba(var(--primary-rgb), 0.12) !important;
+  }
+
+  .hover\:bg-emerald-500\/10:hover,
+  .hover\:bg-emerald-500\/20:hover,
+  .hover\:bg-emerald-500\/25:hover,
+  .hover\:bg-\[\#E8F7EF\]:hover,
+  .hover\:bg-\[\#ECF9F1\]:hover,
+  .hover\:bg-\[\#DCE9E1\]:hover {
+    background-color: rgba(var(--primary-rgb), 0.20) !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     4. GRADIENT BUTTONS & CONTAINERS
+     ------------------------------------------------------------------------- */
+  .from-\[\#2ECC71\],
+  .from-\[\#237A57\],
+  .from-emerald-600,
+  .from-emerald-500,
+  .from-brand-600,
+  .from-brand-500 {
+    --tw-gradient-from: var(--color-primary-deep, var(--color-primary-hover)) var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: var(--color-primary) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  }
+
+  .to-\[\#27AE60\],
+  .to-\[\#5FBF8F\],
+  .to-emerald-500,
+  .to-emerald-400,
+  .to-brand-500,
+  .to-brand-400 {
+    --tw-gradient-to: var(--color-primary) var(--tw-gradient-to-position) !important;
+  }
+
+  .via-teal-600,
+  .via-teal-500,
+  .via-teal-400 {
+    --tw-gradient-stops: var(--tw-gradient-from), var(--color-accent) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  }
+
+  .hover\:from-\[\#27AE60\]:hover,
+  .hover\:from-\[\#5FBF8F\]:hover,
+  .hover\:from-emerald-500:hover,
+  .hover\:from-brand-500:hover {
+    --tw-gradient-from: var(--color-primary) var(--tw-gradient-from-position) !important;
+  }
+
+  .hover\:to-\[\#219653\]:hover,
+  .hover\:to-\[\#237A57\]:hover,
+  .hover\:to-emerald-400:hover,
+  .hover\:to-brand-400:hover {
+    --tw-gradient-to: var(--color-primary-hover) var(--tw-gradient-to-position) !important;
+  }
+
+  /* Soft decorative banner gradients */
+  .from-\[\#F0FAF4\],
+  .from-emerald-500\/10 {
+    --tw-gradient-from: rgba(var(--primary-rgb), 0.08) var(--tw-gradient-from-position) !important;
+  }
+  .via-\[\#E6F8EE\],
+  .via-teal-500\/5,
+  .via-teal-500\/10 {
+    --tw-gradient-stops: var(--tw-gradient-from), rgba(var(--primary-rgb), 0.04) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  }
+  .to-\[\#DCF5E6\] {
+    --tw-gradient-to: rgba(var(--primary-rgb), 0.02) var(--tw-gradient-to-position) !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     5. PUNCHI THITHE IDANA (DOTS, STATUS BADGES & ACTIVE INDICATORS)
+     ------------------------------------------------------------------------- */
+  /* Pulse and status dots */
+  span.w-2.h-2.rounded-full.bg-emerald-500,
+  span.w-2.h-2.rounded-full.bg-\[\#5FBF8F\],
+  span.w-2.h-2.rounded-full.bg-emerald-400,
+  span.w-1\.5.h-1\.5.rounded-full.bg-emerald-500,
+  span.w-1\.5.h-1\.5.rounded-full.bg-\[\#5FBF8F\],
+  .animate-pulse.bg-emerald-500,
+  .animate-pulse.bg-\[\#5FBF8F\],
+  .animate-pulse.bg-emerald-400 {
+    background-color: var(--color-primary) !important;
+  }
+
+  /* Ambition carousel active slide indicator dot */
+  .bg-\[\#5FBF8F\].shadow-\[\#5FBF8F\],
+  .bg-\[\#5FBF8F\].shadow-xs {
+    background-color: var(--color-primary) !important;
+    box-shadow: 0 0 10px rgba(var(--primary-rgb), 0.6) !important;
+  }
+
+  /* Checkbox for completed tasks & subtasks */
+  button.bg-\[\#5FBF8F\],
+  button.border-\[\#5FBF8F\] {
+    background-color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+  }
+
+  /* Active sidebar indicator border */
+  .border-l-3.border-\[\#5FBF8F\],
+  .border-\[\#5FBF8F\] {
+    border-color: var(--color-primary) !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     6. TEXT COLORS & ICONS
+     ------------------------------------------------------------------------- */
+  .text-emerald-500,
+  .text-emerald-600,
+  .text-emerald-700,
+  .text-emerald-400,
+  .text-emerald-300,
+  .text-emerald-200,
+  .text-\[\#2ECC71\],
+  .text-\[\#237A57\],
+  .text-\[\#5FBF8F\],
+  .text-\[\#6DD6A0\],
+  .text-\[\#86EFAC\],
+  .text-\[\#1E7247\],
+  .text-\[\#3D7858\],
+  .text-\[\#72B38F\] {
+    color: var(--color-primary) !important;
+  }
+
+  .hover\:text-emerald-600:hover,
+  .hover\:text-emerald-500:hover,
+  .hover\:text-emerald-400:hover,
+  .hover\:text-\[\#237A57\]:hover,
+  .hover\:text-\[\#5FBF8F\]:hover,
+  .hover\:text-brand-600:hover {
+    color: var(--color-primary-hover) !important;
+  }
+
+  /* Default text contrast mappings */
+  .text-\[\#17211B\],
+  .text-\[\#0F2D1E\] {
+    color: var(--color-text-primary) !important;
+  }
+  .text-\[\#66736B\],
+  .text-\[\#3E4D44\] {
+    color: var(--color-text-secondary) !important;
+  }
+  .text-\[\#8A9890\] {
+    color: var(--color-text-muted) !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     7. BORDERS & FOCUS RINGS
+     ------------------------------------------------------------------------- */
+  .border-\[\#DCE9E1\],
+  .border-\[\#BBEAD0\],
+  .border-\[\#E1EBE4\] {
+    border-color: var(--color-border) !important;
+  }
+
+  .border-emerald-600,
+  .border-emerald-500,
+  .border-emerald-400,
+  .border-\[\#5FBF8F\],
+  .border-\[\#2ECC71\] {
+    border-color: var(--color-primary) !important;
+  }
+
+  .border-emerald-500\/20,
+  .border-emerald-500\/30,
+  .border-emerald-400\/40,
+  .border-\[\#5FBF8F\]\/50,
+  .border-\[\#5FBF8F\]\/30 {
+    border-color: rgba(var(--primary-rgb), 0.28) !important;
+  }
+
+  .hover\:border-\[\#5FBF8F\]:hover,
+  .hover\:border-emerald-500:hover,
+  .hover\:border-emerald-400:hover {
+    border-color: var(--color-primary) !important;
+  }
+
+  .focus\:border-emerald-500:focus,
+  .focus\:border-\[\#5FBF8F\]:focus {
+    border-color: var(--color-primary) !important;
+  }
+
+  .focus\:ring-emerald-500:focus {
+    --tw-ring-color: var(--color-primary) !important;
+    box-shadow: var(--tw-ring-offset-shadow), 0 0 0 2px var(--color-primary) !important;
+  }
+
+  /* -------------------------------------------------------------------------
+     8. BOX SHADOWS
+     ------------------------------------------------------------------------- */
+  .shadow-emerald-500\/20,
+  .shadow-emerald-500\/25,
+  .shadow-emerald-600\/20,
+  .shadow-emerald-600\/25,
+  .shadow-\[\#5FBF8F\]\/20,
+  .shadow-\[\#5FBF8F\]\/25,
+  .shadow-\[\#5FBF8F\] {
+    --tw-shadow-color: rgba(var(--primary-rgb), 0.25) !important;
+    box-shadow: 0 4px 14px 0 rgba(var(--primary-rgb), 0.25) !important;
+  }
+}
+
+html:not([data-theme="emerald"]).dark,
+.dark html:not([data-theme="emerald"]) {
+  /* Dark mode background mappings */
+  .dark\:bg-\[\#08120D\],
+  .dark\:bg-\[\#0A1811\] {
+    background-color: var(--color-background) !important;
+  }
+  .dark\:bg-\[\#0E1C15\],
+  .dark\:bg-\[\#152119\],
+  .dark\:bg-\[\#121C15\] {
+    background-color: var(--color-surface) !important;
+  }
+  .dark\:bg-\[\#13261C\],
+  .dark\:bg-\[\#10271C\],
+  .dark\:bg-\[\#1C2C21\],
+  .dark\:bg-\[\#1E2B22\] {
+    background-color: var(--color-surface-secondary) !important;
+  }
+
+  /* Dark mode soft surfaces */
+  .dark\:bg-emerald-950\/30,
+  .dark\:bg-emerald-500\/10 {
+    background-color: rgba(var(--primary-rgb), 0.15) !important;
+  }
+
+  .dark\:hover\:bg-\[\#13261C\]\/60:hover,
+  .dark\:hover\:bg-\[\#13261C\]:hover {
+    background-color: rgba(var(--primary-rgb), 0.22) !important;
+  }
+
+  /* Dark mode border mappings */
+  .dark\:border-\[\#20372B\],
+  .dark\:border-\[\#1E4933\],
+  .dark\:border-\[\#193A29\],
+  .dark\:border-\[\#24352A\],
+  .dark\:border-\[\#2E4536\],
+  .dark\:border-\[\#2C3E33\] {
+    border-color: var(--color-border) !important;
+  }
+  .dark\:border-emerald-500\/20,
+  .dark\:border-emerald-500\/30 {
+    border-color: rgba(var(--primary-rgb), 0.25) !important;
+  }
+
+  .dark\:hover\:border-\[\#6DD6A0\]:hover,
+  .dark\:hover\:border-emerald-400:hover {
+    border-color: var(--color-accent) !important;
+  }
+
+  /* Dark mode text mappings */
+  .dark\:text-\[\#EAF7EF\],
+  .dark\:text-\[\#E8FAF0\] {
+    color: var(--color-text-primary) !important;
+  }
+  .dark\:text-\[\#9BB5A5\],
+  .dark\:text-\[\#C5D6CC\] {
+    color: var(--color-text-secondary) !important;
+  }
+  .dark\:text-\[\#6F8A7A\] {
+    color: var(--color-text-muted) !important;
+  }
+  .dark\:text-emerald-400,
+  .dark\:text-emerald-300,
+  .dark\:text-\[\#6DD6A0\],
+  .dark\:text-\[\#86EFAC\],
+  .dark\:text-\[\#72B38F\] {
+    color: var(--color-accent) !important;
+  }
+
+  /* Dark decorative banner gradients */
+  .dark\:from-\[\#0B1E14\],
+  .dark\:from-\[\#0E2017\] {
+    --tw-gradient-from: rgba(var(--primary-rgb), 0.12) var(--tw-gradient-from-position) !important;
+  }
+  .dark\:via-\[\#0F281B\] {
+    --tw-gradient-stops: var(--tw-gradient-from), rgba(var(--primary-rgb), 0.06) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  }
+  .dark\:to-\[\#133322\],
+  .dark\:to-\[\#0A1811\] {
+    --tw-gradient-to: rgba(var(--primary-rgb), 0.02) var(--tw-gradient-to-position) !important;
+  }
+}
+
+@layer components {
+  .nest-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+    transition: all 0.2s ease-in-out;
+  }
+  .nest-card:hover {
+    border-color: var(--color-primary);
+  }
+
+  .nest-btn-primary {
+    background-color: var(--color-primary);
+    color: #17211B;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s ease-in-out;
+  }
+  .nest-btn-primary:hover {
+    background-color: var(--color-primary-hover);
+    color: #FFFFFF;
+  }
+
+  .nest-btn-secondary {
+    background-color: var(--color-surface-secondary);
+    color: var(--color-primary-hover);
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s ease-in-out;
+  }
+  .nest-btn-secondary:hover {
+    background-color: var(--color-primary);
+    color: #17211B;
+  }
+
+  .nest-input {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.875rem;
+    transition: all 0.2s ease-in-out;
+  }
+  .nest-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 95, 191, 143), 0.25);
+  }
+}

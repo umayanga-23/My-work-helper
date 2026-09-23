@@ -1,0 +1,35 @@
+import { ColorThemeDefinition } from './types';
+
+export const goldTheme: ColorThemeDefinition = {
+  id: 'gold',
+  name: 'Golden Sun',
+  description: 'Bright, optimistic and comfortable. Designed for positive productivity.',
+  icon: '☀️',
+  primaryRgb: '234, 191, 79',
+  light: {
+    primary: '#EABF4F',
+    primaryHover: '#C99A20',
+    accent: '#F4D56B',
+    deep: '#8A6A0A',
+    background: '#FFFDF3',
+    surface: '#FFFFFF',
+    surfaceSecondary: '#FFF7D6',
+    border: '#EEE4B9',
+    textPrimary: '#242014',
+    textSecondary: '#746D5B',
+    textMuted: '#9A927D',
+  },
+  dark: {
+    primary: '#EABF4F',
+    primaryHover: '#F4D56B',
+    accent: '#F4D56B',
+    deep: '#8A6A0A',
+    background: '#151208',
+    surface: '#211D0D',
+    surfaceSecondary: '#2B2611',
+    border: '#443B1B',
+    textPrimary: '#FFFBE8',
+    textSecondary: '#CFC59B',
+    textMuted: '#9E956E',
+  },
+};

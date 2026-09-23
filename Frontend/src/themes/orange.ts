@@ -1,0 +1,35 @@
+import { ColorThemeDefinition } from './types';
+
+export const orangeTheme: ColorThemeDefinition = {
+  id: 'orange',
+  name: 'Soft Orange',
+  description: 'Warm, energetic and friendly. Adds subtle warmth to your workspace.',
+  icon: '🍊',
+  primaryRgb: '244, 162, 97',
+  light: {
+    primary: '#F4A261',
+    primaryHover: '#D97732',
+    accent: '#FDBA74',
+    deep: '#9A4D16',
+    background: '#FFFAF5',
+    surface: '#FFFFFF',
+    surfaceSecondary: '#FFF0E2',
+    border: '#F1DED0',
+    textPrimary: '#251B15',
+    textSecondary: '#766960',
+    textMuted: '#9B8E84',
+  },
+  dark: {
+    primary: '#F4A261',
+    primaryHover: '#FDBA74',
+    accent: '#FDBA74',
+    deep: '#9A4D16',
+    background: '#17100A',
+    surface: '#21170F',
+    surfaceSecondary: '#2C1E13',
+    border: '#46301F',
+    textPrimary: '#FFF2E7',
+    textSecondary: '#CDB39E',
+    textMuted: '#9D826D',
+  },
+};
