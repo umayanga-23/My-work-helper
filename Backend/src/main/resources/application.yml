@@ -12,20 +12,18 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:}
   h2:
     console:
-      enabled: true
-      path: /h2-console
+      enabled: false
   jpa:
-    database-platform: ${JPA_DATABASE_PLATFORM:org.hibernate.dialect.PostgreSQLDialect}
     hibernate:
       ddl-auto: update
     show-sql: false
+    open-in-view: false
     properties:
       hibernate:
-        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
         format_sql: true
 
 supabase:
-  url: ${SUPABASE_URL:}
+  url: ${SUPABASE_URL:https://ngeokbpgmtqbijjvonnw.supabase.co}
   anon-key: ${SUPABASE_ANON_KEY:}
   service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
   jwt-secret: ${SUPABASE_JWT_SECRET:}
@@ -42,4 +40,4 @@ ai:
 logging:
   level:
     root: INFO
-    com.personal.workspace: DEBUG
+    com.personal.workspace: INFO
