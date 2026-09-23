@@ -1,5 +1,4 @@
 # Multi-stage Dockerfile for Spring Boot 3 Backend
-# Stage 1: Build the application
 FROM eclipse-temurin:17-jdk-jammy AS build
 WORKDIR /workspace
 
@@ -20,6 +19,6 @@ WORKDIR /app
 COPY --from=build /workspace/target/*.jar app.jar
 
 ENV PORT=8080
-EXPOSE 8080
+EXPOSE 8080 10000
 
-CMD ["sh", "-c", "java -Dserver.port=${PORT} -jar app.jar"]
+CMD ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xss512k -Djava.security.egd=file:/dev/./urandom -Dserver.port=${PORT:-8080} -jar app.jar"]
