@@ -27,6 +27,7 @@ public class ActivityLogEntity {
     @Column(name = "project_id")
     private UUID projectId;
 
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")
     private String metadata;
 
