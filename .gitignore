@@ -1,0 +1,58 @@
+# Environment & Secrets (Never commit .env files)
+.env
+.env.local
+.env.*.local
+*.env
+Backend/.env
+Frontend/.env
+Frontend/.env.local
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & Editor Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sublime-workspace
+*.sublime-project
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Workspace AI & Scratch Folders
+scratch/
+.gemini/
+.agents/
+
+# Backend Build & Runtime Artifacts
+Backend/target/
+Backend/data/
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Frontend Build & Dependencies
+Frontend/node_modules/
+Frontend/dist/
+Frontend/dist-ssr/
+node_modules/
+dist/
