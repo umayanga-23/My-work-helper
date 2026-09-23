@@ -43,6 +43,7 @@ import { TaskCalendarView } from '../components/tasks/TaskCalendarView';
 import { RecurringTasksPanel } from '../components/tasks/RecurringTasksPanel';
 import { RecurringTaskModal } from '../components/tasks/RecurringTaskModal';
 import { calculateTaskProgress, generateCompactTrendBar } from '../utils/taskProgress';
+import { useLiveSync } from '../hooks/useLiveSync';
 import { clsx } from 'clsx';
 
 export const TasksPage: React.FC = () => {
@@ -187,6 +188,11 @@ export const TasksPage: React.FC = () => {
   useEffect(() => {
     fetchTasks(debouncedSearch, selectedCategory);
   }, [debouncedSearch, selectedCategory]);
+
+  // Automatic live sync across devices (polls every 12s and revalidates instantly when switching back to tab)
+  useLiveSync(() => {
+    fetchTasks(debouncedSearch, selectedCategory);
+  }, { intervalMs: 12000 });
 
   const handleToggleStatus = async (task: Task) => {
     const nextStatus: TaskStatus = task.status === 'COMPLETED' ? 'TODO' : 'COMPLETED';

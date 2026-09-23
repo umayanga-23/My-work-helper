@@ -18,6 +18,7 @@ import { taskService } from '../services/taskService';
 import { categoryService } from '../services/categoryService';
 import { TaskModal } from '../components/tasks/TaskModal';
 import { AiPlanTodayModal } from '../components/tasks/AiPlanTodayModal';
+import { useLiveSync } from '../hooks/useLiveSync';
 import { clsx } from 'clsx';
 
 interface AmbitionSlide {
@@ -148,6 +149,11 @@ export const HomeDashboard: React.FC = () => {
       window.removeEventListener('workspace-category-updated', handleCreated);
     };
   }, []);
+
+  // Automatic live sync across devices
+  useLiveSync(() => {
+    loadData();
+  }, { intervalMs: 12000 });
 
   const handleToggleTaskStatus = async (task: Task) => {
     const nextStatus = task.status === 'COMPLETED' ? 'TODO' : 'COMPLETED';

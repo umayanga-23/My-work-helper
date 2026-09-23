@@ -26,6 +26,7 @@ import { NoteModal } from '../components/notes/NoteModal';
 import { AiNoteSummaryModal } from '../components/notes/AiNoteSummaryModal';
 import { CategoryModal } from '../components/categories/CategoryModal';
 import { useConfirm } from '../contexts/ConfirmDialogContext';
+import { useLiveSync } from '../hooks/useLiveSync';
 import { clsx } from 'clsx';
 
 type ViewMode = 'SECTIONS' | 'GRID' | 'LIST';
@@ -80,6 +81,11 @@ export const NotesPage: React.FC = () => {
       window.removeEventListener('workspace-resource-created', handleCategoryUpdate);
     };
   }, [search, selectedCategory, activeTab]);
+
+  // Automatic live sync across devices
+  useLiveSync(() => {
+    loadNotes();
+  }, { intervalMs: 15000 });
 
   // Top Pinned / Starred Notes Speed Dock
   const speedDockNotes = useMemo(() => {

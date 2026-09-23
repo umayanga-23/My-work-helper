@@ -16,6 +16,7 @@ import { AiProjectPrdModal } from '../components/projects/AiProjectPrdModal';
 import { Project, ProjectStatus } from '../types';
 import { projectService } from '../services/projectService';
 import { useConfirm } from '../contexts/ConfirmDialogContext';
+import { useLiveSync } from '../hooks/useLiveSync';
 import { clsx } from 'clsx';
 
 export const ProjectsPage: React.FC = () => {
@@ -54,6 +55,11 @@ export const ProjectsPage: React.FC = () => {
   useEffect(() => {
     loadProjects();
   }, [search, activeStatus]);
+
+  // Automatic live sync across devices
+  useLiveSync(() => {
+    loadProjects();
+  }, { intervalMs: 15000 });
 
   const handleDelete = async (e: React.MouseEvent, id: string, name?: string) => {
     e.stopPropagation();
