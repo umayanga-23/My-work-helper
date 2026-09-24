@@ -20,7 +20,7 @@ public interface NoteRepository extends JpaRepository<NoteEntity, UUID> {
            "(:projectId IS NULL OR n.projectId = :projectId) AND " +
            "(:isFavorite IS NULL OR n.isFavorite = :isFavorite) AND " +
            "(:isArchived IS NULL OR n.isArchived = :isArchived) AND " +
-           "(:search IS NULL OR LOWER(n.title) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(n.content) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(n.tags) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "(:search IS NULL OR LOWER(n.title) LIKE :search OR (n.content IS NOT NULL AND LOWER(n.content) LIKE :search) OR (n.tags IS NOT NULL AND LOWER(n.tags) LIKE :search)) " +
            "ORDER BY n.isFavorite DESC, n.updatedAt DESC")
     List<NoteEntity> filterNotes(@Param("userId") UUID userId,
                                  @Param("categoryId") UUID categoryId,

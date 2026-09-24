@@ -17,7 +17,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class WebsiteService {
 
     private final WebsiteRepository websiteRepository;
@@ -36,7 +39,10 @@ public class WebsiteService {
     }
 
     public List<WebsiteDTO> getWebsites(UUID userId, UUID categoryId, UUID projectId, Boolean isFavorite, String search) {
-        List<WebsiteEntity> entities = websiteRepository.filterWebsites(userId, categoryId, projectId, isFavorite, search);
+        String searchPattern = (search != null && !search.trim().isEmpty())
+                ? "%" + search.trim().toLowerCase() + "%"
+                : null;
+        List<WebsiteEntity> entities = websiteRepository.filterWebsites(userId, categoryId, projectId, isFavorite, searchPattern);
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 

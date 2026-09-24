@@ -18,7 +18,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> 
     @Query("SELECT d FROM DocumentEntity d WHERE d.userId = :userId AND " +
            "(:categoryId IS NULL OR d.categoryId = :categoryId) AND " +
            "(:projectId IS NULL OR d.projectId = :projectId) AND " +
-           "(:search IS NULL OR LOWER(d.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(d.originalFileName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "(:search IS NULL OR LOWER(d.name) LIKE :search OR (d.originalFileName IS NOT NULL AND LOWER(d.originalFileName) LIKE :search)) " +
            "ORDER BY d.createdAt DESC")
     List<DocumentEntity> filterDocuments(@Param("userId") UUID userId,
                                          @Param("categoryId") UUID categoryId,

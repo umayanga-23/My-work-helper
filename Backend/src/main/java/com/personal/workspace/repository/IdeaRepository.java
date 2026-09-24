@@ -18,7 +18,7 @@ public interface IdeaRepository extends JpaRepository<IdeaEntity, UUID> {
 
     @Query("SELECT i FROM IdeaEntity i WHERE i.userId = :userId AND " +
            "(:status IS NULL OR i.status = :status) AND " +
-           "(:search IS NULL OR LOWER(i.title) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(i.description) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(i.tags) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "(:search IS NULL OR LOWER(i.title) LIKE :search OR (i.description IS NOT NULL AND LOWER(i.description) LIKE :search) OR (i.tags IS NOT NULL AND LOWER(i.tags) LIKE :search)) " +
            "ORDER BY i.createdAt DESC")
     List<IdeaEntity> filterIdeas(@Param("userId") UUID userId,
                                  @Param("status") IdeaStatus status,

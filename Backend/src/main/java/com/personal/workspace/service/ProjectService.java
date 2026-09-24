@@ -13,6 +13,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
@@ -70,7 +71,10 @@ public class ProjectService {
     }
 
     public List<ProjectDTO> getProjects(UUID userId, ProjectStatus status, String search) {
-        List<ProjectEntity> entities = projectRepository.filterProjects(userId, status, search);
+        String searchPattern = (search != null && !search.trim().isEmpty())
+                ? "%" + search.trim().toLowerCase() + "%"
+                : null;
+        List<ProjectEntity> entities = projectRepository.filterProjects(userId, status, searchPattern);
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 

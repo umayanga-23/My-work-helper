@@ -32,6 +32,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class TaskService {
 
     private final TaskRepository taskRepository;
@@ -83,7 +84,10 @@ public class TaskService {
     }
 
     public List<TaskDTO> getTasks(UUID userId, TaskStatus status, UUID categoryId, UUID projectId, String search) {
-        List<TaskEntity> entities = taskRepository.filterTasks(userId, status, categoryId, projectId, search);
+        String searchPattern = (search != null && !search.trim().isEmpty())
+                ? "%" + search.trim().toLowerCase() + "%"
+                : null;
+        List<TaskEntity> entities = taskRepository.filterTasks(userId, status, categoryId, projectId, searchPattern);
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 

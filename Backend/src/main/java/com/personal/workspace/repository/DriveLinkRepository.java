@@ -19,7 +19,7 @@ public interface DriveLinkRepository extends JpaRepository<DriveLinkEntity, UUID
            "(:categoryId IS NULL OR d.categoryId = :categoryId) AND " +
            "(:projectId IS NULL OR d.projectId = :projectId) AND " +
            "(:isFavorite IS NULL OR d.isFavorite = :isFavorite) AND " +
-           "(:search IS NULL OR LOWER(d.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(d.url) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(d.description) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "(:search IS NULL OR LOWER(d.name) LIKE :search OR LOWER(d.url) LIKE :search OR (d.description IS NOT NULL AND LOWER(d.description) LIKE :search)) " +
            "ORDER BY d.isFavorite DESC, d.createdAt DESC")
     List<DriveLinkEntity> filterDriveLinks(@Param("userId") UUID userId,
                                            @Param("categoryId") UUID categoryId,

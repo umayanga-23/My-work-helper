@@ -23,7 +23,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class DocumentService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
@@ -61,7 +64,10 @@ public class DocumentService {
     }
 
     public List<DocumentDTO> getDocuments(UUID userId, UUID categoryId, UUID projectId, String search) {
-        List<DocumentEntity> entities = documentRepository.filterDocuments(userId, categoryId, projectId, search);
+        String searchPattern = (search != null && !search.trim().isEmpty())
+                ? "%" + search.trim().toLowerCase() + "%"
+                : null;
+        List<DocumentEntity> entities = documentRepository.filterDocuments(userId, categoryId, projectId, searchPattern);
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 

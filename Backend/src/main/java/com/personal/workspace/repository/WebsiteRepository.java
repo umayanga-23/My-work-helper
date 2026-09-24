@@ -19,7 +19,7 @@ public interface WebsiteRepository extends JpaRepository<WebsiteEntity, UUID> {
            "(:categoryId IS NULL OR w.categoryId = :categoryId) AND " +
            "(:projectId IS NULL OR w.projectId = :projectId) AND " +
            "(:isFavorite IS NULL OR w.isFavorite = :isFavorite) AND " +
-           "(:search IS NULL OR LOWER(w.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(w.url) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(w.description) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(w.tags) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "(:search IS NULL OR LOWER(w.name) LIKE :search OR LOWER(w.url) LIKE :search OR (w.description IS NOT NULL AND LOWER(w.description) LIKE :search) OR (w.tags IS NOT NULL AND LOWER(w.tags) LIKE :search)) " +
            "ORDER BY w.isFavorite DESC, w.createdAt DESC")
     List<WebsiteEntity> filterWebsites(@Param("userId") UUID userId,
                                        @Param("categoryId") UUID categoryId,

@@ -14,7 +14,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class DriveLinkService {
 
     private final DriveLinkRepository driveLinkRepository;
@@ -33,7 +36,10 @@ public class DriveLinkService {
     }
 
     public List<DriveLinkDTO> getDriveLinks(UUID userId, UUID categoryId, UUID projectId, Boolean isFavorite, String search) {
-        List<DriveLinkEntity> entities = driveLinkRepository.filterDriveLinks(userId, categoryId, projectId, isFavorite, search);
+        String searchPattern = (search != null && !search.trim().isEmpty())
+                ? "%" + search.trim().toLowerCase() + "%"
+                : null;
+        List<DriveLinkEntity> entities = driveLinkRepository.filterDriveLinks(userId, categoryId, projectId, isFavorite, searchPattern);
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 

@@ -23,7 +23,7 @@ public interface TaskRepository extends JpaRepository<TaskEntity, UUID> {
            "(:status IS NULL OR t.status = :status) AND " +
            "(:categoryId IS NULL OR t.categoryId = :categoryId) AND " +
            "(:projectId IS NULL OR t.projectId = :projectId) AND " +
-           "(:search IS NULL OR LOWER(t.title) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(t.description) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "(:search IS NULL OR LOWER(t.title) LIKE :search OR (t.description IS NOT NULL AND LOWER(t.description) LIKE :search)) " +
            "ORDER BY t.createdAt DESC")
     List<TaskEntity> filterTasks(@Param("userId") UUID userId,
                                  @Param("status") TaskStatus status,

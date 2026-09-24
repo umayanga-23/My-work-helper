@@ -27,6 +27,10 @@ public class UserPrincipal implements UserDetails {
         return email;
     }
 
+    public String getName() {
+        return id != null ? id.toString() : email;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singletonList(new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role : "ROLE_" + role));

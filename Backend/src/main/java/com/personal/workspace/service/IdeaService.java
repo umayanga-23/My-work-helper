@@ -19,7 +19,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class IdeaService {
 
     private final IdeaRepository ideaRepository;
@@ -31,7 +34,10 @@ public class IdeaService {
     }
 
     public List<IdeaDTO> getIdeas(UUID userId, IdeaStatus status, String search) {
-        List<IdeaEntity> entities = ideaRepository.filterIdeas(userId, status, search);
+        String searchPattern = (search != null && !search.trim().isEmpty())
+                ? "%" + search.trim().toLowerCase() + "%"
+                : null;
+        List<IdeaEntity> entities = ideaRepository.filterIdeas(userId, status, searchPattern);
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 
