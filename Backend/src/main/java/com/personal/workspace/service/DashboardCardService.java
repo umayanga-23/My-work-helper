@@ -15,6 +15,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class DashboardCardService {
 
     private final DashboardCardRepository dashboardCardRepository;
