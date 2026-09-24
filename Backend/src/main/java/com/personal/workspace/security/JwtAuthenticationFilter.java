@@ -27,20 +27,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt)) {
-                // If demo token or local dev mode, authorize as demo user principal
-                UserPrincipal userPrincipal;
+                UserPrincipal userPrincipal = null;
                 if ("demo-jwt-token-dev-1001".equals(jwt)) {
                     userPrincipal = new UserPrincipal(DEMO_USER_ID, "developer@workspace.local", "ROLE_ADMIN");
                 } else {
-                    // Placeholder for standard Supabase JWT validation logic
-                    userPrincipal = new UserPrincipal(DEMO_USER_ID, "user@workspace.local", "ROLE_USER");
+                    try {
+                        String[] parts = jwt.split("\\.");
+                        if (parts.length >= 2) {
+                            String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]), java.nio.charset.StandardCharsets.UTF_8);
+                            com.fasterxml.jackson.databind.JsonNode jsonNode = new com.fasterxml.jackson.databind.ObjectMapper().readTree(payloadJson);
+                            String sub = jsonNode.has("sub") ? jsonNode.get("sub").asText() : null;
+                            if (sub != null) {
+                                UUID userId = UUID.fromString(sub);
+                                String email = jsonNode.has("email") ? jsonNode.get("email").asText() : "user@workspace.local";
+                                String role = jsonNode.has("role") ? jsonNode.get("role").asText() : "ROLE_USER";
+                                userPrincipal = new UserPrincipal(userId, email, role);
+                            }
+                        }
+                    } catch (Exception parseEx) {
+                        logger.warn("Could not parse JWT token claims: " + parseEx.getMessage());
+                    }
+                    if (userPrincipal == null) {
+                        userPrincipal = new UserPrincipal(DEMO_USER_ID, "user@workspace.local", "ROLE_USER");
+                    }
                 }
 
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userPrincipal, null, userPrincipal.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                if (userPrincipal != null) {
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            userPrincipal, null, userPrincipal.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context", ex);
