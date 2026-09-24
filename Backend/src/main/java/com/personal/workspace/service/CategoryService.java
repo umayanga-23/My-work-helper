@@ -34,6 +34,9 @@ public class CategoryService {
             entities = categoryRepository.findByUserIdAndType(userId, type);
         } else {
             entities = categoryRepository.findByUserId(userId);
+            if (entities.isEmpty()) {
+                entities = seedDefaultCategories(userId);
+            }
         }
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
