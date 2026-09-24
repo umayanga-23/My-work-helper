@@ -21,7 +21,7 @@ public class AnalyticsController {
         this.analyticsService = analyticsService;
     }
 
-    @GetMapping("/summary")
+    @GetMapping({"/summary", "/dashboard"})
     public ResponseEntity<ApiResponse<AnalyticsSummaryDTO>> getAnalyticsSummary(@AuthenticationPrincipal UserPrincipal principal) {
         UUID userId = principal != null ? principal.getId() : DEMO_USER_ID;
         AnalyticsSummaryDTO summary = analyticsService.getAnalyticsSummary(userId);

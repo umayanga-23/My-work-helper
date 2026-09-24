@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/activity")
+@RequestMapping({"/api/activity", "/api/activity-logs"})
 public class ActivityLogController {
 
     private static final UUID DEMO_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
