@@ -93,6 +93,27 @@ export const isTaskFactualOverdue = (task: Task, todayStr: string = getLocalDate
     const currentHours = String(now.getHours()).padStart(2, '0');
     const currentMins = String(now.getMinutes()).padStart(2, '0');
     const currentTimeStr = `${currentHours}:${currentMins}`;
+
+    // If estimatedDuration is specified, deadline is start time + duration
+    if (task.estimatedDuration && task.estimatedDuration > 0) {
+      const parts = task.dueTime.slice(0, 5).split(':');
+      if (parts.length === 2) {
+        const startH = parseInt(parts[0], 10);
+        const startM = parseInt(parts[1], 10);
+        if (!isNaN(startH) && !isNaN(startM)) {
+          const totalMins = startH * 60 + startM + task.estimatedDuration;
+          const endH = Math.floor(totalMins / 60);
+          const endM = totalMins % 60;
+          if (endH >= 24) {
+            // Extends past midnight
+            return false;
+          }
+          const endTimeStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+          return endTimeStr < currentTimeStr;
+        }
+      }
+    }
+
     return task.dueTime < currentTimeStr;
   }
   return false;

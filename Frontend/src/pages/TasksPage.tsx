@@ -42,7 +42,7 @@ import { AiDecomposeModal } from '../components/tasks/AiDecomposeModal';
 import { TaskCalendarView } from '../components/tasks/TaskCalendarView';
 import { RecurringTasksPanel } from '../components/tasks/RecurringTasksPanel';
 import { RecurringTaskModal } from '../components/tasks/RecurringTaskModal';
-import { calculateTaskProgress, generateCompactTrendBar } from '../utils/taskProgress';
+import { calculateTaskProgress, generateCompactTrendBar, isTaskFactualOverdue } from '../utils/taskProgress';
 import { useLiveSync } from '../hooks/useLiveSync';
 import { clsx } from 'clsx';
 
@@ -669,18 +669,7 @@ export const TasksPage: React.FC = () => {
   };
   const todayStr = getLocalTodayStr();
 
-  const isTaskOverdue = (task: Task) => {
-    if (task.status === 'COMPLETED' || !task.dueDate) return false;
-    if (task.dueDate < todayStr) return true;
-    if (task.dueDate === todayStr && task.dueTime) {
-      const now = new Date();
-      const currentHours = String(now.getHours()).padStart(2, '0');
-      const currentMins = String(now.getMinutes()).padStart(2, '0');
-      const currentTimeStr = `${currentHours}:${currentMins}`;
-      return task.dueTime < currentTimeStr;
-    }
-    return false;
-  };
+  const isTaskOverdue = (task: Task) => isTaskFactualOverdue(task, todayStr);
 
   const formatDisplayTime = (timeStr?: string) => {
     if (!timeStr) return '';

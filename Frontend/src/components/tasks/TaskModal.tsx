@@ -70,13 +70,22 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
   const todayStr = getTodayStr();
 
+  const getDefaultDueTime = () => {
+    const now = new Date();
+    const nextHour = now.getHours() + 1;
+    if (nextHour >= 23) {
+      return '23:59';
+    }
+    return `${String(nextHour).padStart(2, '0')}:00`;
+  };
+
   const [taskType, setTaskType] = useState<'TODAY' | 'EPIC'>('TODAY');
   const [title, setTitle] = useState(initialTask?.title || '');
   const [description, setDescription] = useState(initialTask?.description || '');
   const [priority, setPriority] = useState<TaskPriority>(initialTask?.priority || 'MEDIUM');
   const [status, setStatus] = useState<TaskStatus>(initialTask?.status || 'TODO');
   const [dueDate, setDueDate] = useState(initialTask?.dueDate || todayStr);
-  const [dueTime, setDueTime] = useState(initialTask?.dueTime || '18:00');
+  const [dueTime, setDueTime] = useState(initialTask?.dueTime || getDefaultDueTime());
   const [estimatedDuration, setEstimatedDuration] = useState<number | undefined>(initialTask?.estimatedDuration);
   const [categoryId, setCategoryId] = useState(initialTask?.categoryId || '');
   const [projectId, setProjectId] = useState(initialTask?.projectId || defaultProjectId || '');
@@ -126,7 +135,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         setDueDate(`${y}-${m}-${d}`);
       }
 
-      setDueTime(initialTask?.dueTime || '18:00');
+      setDueTime(initialTask?.dueTime || getDefaultDueTime());
       setEstimatedDuration(initialTask?.estimatedDuration);
       setCategoryId(initialTask?.categoryId || '');
       setProjectId(initialTask?.projectId || defaultProjectId || '');

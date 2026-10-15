@@ -38,6 +38,7 @@ import { driveService } from '../../services/driveService';
 import { ideaService } from '../../services/ideaService';
 import { projectService } from '../../services/projectService';
 import { clsx } from 'clsx';
+import { isTaskFactualOverdue } from '../../utils/taskProgress';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -179,13 +180,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
   const todayStr = getTodayStr();
 
-  const isOverdue =
-    !isCompleted &&
-    currentTask.dueDate &&
-    (currentTask.dueDate < todayStr ||
-      (currentTask.dueDate === todayStr &&
-        currentTask.dueTime &&
-        currentTask.dueTime < `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`));
+  const isOverdue = currentTask ? isTaskFactualOverdue(currentTask, todayStr) : false;
 
   const priorityBadgeClass = (priority: TaskPriority) => {
     switch (priority) {
@@ -635,7 +630,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   };
 
-  const groupedHistory = React.useMemo(() => {
+  const groupedHistory = (() => {
     const evts = getFactualActivityEvents();
     const groups: { dateLabel: string; items: TaskHistoryEvent[] }[] = [];
     const map = new Map<string, TaskHistoryEvent[]>();
@@ -651,7 +646,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     });
 
     return groups;
-  }, [activities, currentTask]);
+  })();
 
   return (
     <div
