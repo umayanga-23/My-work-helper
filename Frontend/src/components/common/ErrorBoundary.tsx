@@ -9,12 +9,14 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  componentStack?: string | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
+    componentStack: null,
   };
 
   public static getDerivedStateFromError(error: Error): State {
@@ -23,15 +25,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('AIU Workspace ErrorBoundary caught an unhandled render error:', error, errorInfo);
+    this.setState({ componentStack: errorInfo.componentStack });
   }
 
   private handleAutoRefresh = () => {
-    this.setState({ hasError: false, error: null });
-    window.location.reload();
+    this.setState({ hasError: false, error: null, componentStack: null });
+    // Force hard reload bypassing cache
+    window.location.href = window.location.pathname + '?v=' + Date.now();
   };
 
   private handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, componentStack: null });
   };
 
   public render() {
@@ -53,6 +57,11 @@ export class ErrorBoundary extends Component<Props, State> {
                 <div className="p-2 rounded-lg bg-rose-500/5 text-rose-600 dark:text-rose-400 font-mono text-[11px] break-words text-left">
                   {this.state.error.message}
                 </div>
+              )}
+              {this.state.componentStack && (
+                <pre className="p-2 max-h-36 overflow-auto rounded-lg bg-black/5 dark:bg-white/5 text-[10px] text-[#4D5E53] dark:text-[#9BB5A5] font-mono text-left whitespace-pre-wrap">
+                  {this.state.componentStack}
+                </pre>
               )}
             </div>
             <div className="flex items-center justify-center gap-3 pt-2">

@@ -2701,29 +2701,31 @@ export const TasksPage: React.FC = () => {
       />
 
       {/* In-depth Task Card Detail Workspace */}
-      <TaskDetailModal
-        task={detailTask}
-        isOpen={!!detailTask}
-        onClose={() => setDetailTask(null)}
-        onToggleStatus={handleToggleStatus}
-        onToggleSubtask={handleToggleSubtaskStatus}
-        onAddSubtask={(parentId, title) => handleAddSubtask(parentId, title)}
-        onExtendDeadline={handleExtendDeadline}
-        onDelete={handleDeleteTask}
-        onUpdateTask={async (updated) => {
-          setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-          setDetailTask(updated);
-          const full = await taskService.getTasks().catch(() => null);
-          if (full) setTasks(full);
-        }}
-        onEdit={(t: Task) => {
-          setDetailTask(null);
-          setEditingTask(t);
-          setTaskModalOpen(true);
-        }}
-        allTasks={tasks}
-        onSelectTask={(t) => setDetailTask(t)}
-      />
+      {detailTask && (
+        <TaskDetailModal
+          task={detailTask}
+          isOpen={true}
+          onClose={() => setDetailTask(null)}
+          onToggleStatus={handleToggleStatus}
+          onToggleSubtask={handleToggleSubtaskStatus}
+          onAddSubtask={(parentId, title) => handleAddSubtask(parentId, title)}
+          onExtendDeadline={handleExtendDeadline}
+          onDelete={handleDeleteTask}
+          onUpdateTask={async (updated) => {
+            setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+            setDetailTask(updated);
+            const full = await taskService.getTasks().catch(() => null);
+            if (full) setTasks(full);
+          }}
+          onEdit={(t: Task) => {
+            setDetailTask(null);
+            setEditingTask(t);
+            setTaskModalOpen(true);
+          }}
+          allTasks={tasks}
+          onSelectTask={(t) => setDetailTask(t)}
+        />
+      )}
 
       {/* AI Daily Planner Modal */}
       <AiPlanTodayModal
