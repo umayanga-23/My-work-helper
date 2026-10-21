@@ -13,12 +13,16 @@ import {
   Terminal
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Task, Category } from '../types';
+import { Task, Category, Project } from '../types';
 import { taskService } from '../services/taskService';
 import { categoryService } from '../services/categoryService';
+import { projectService } from '../services/projectService';
 import { TaskModal } from '../components/tasks/TaskModal';
+import { TaskDetailModal } from '../components/tasks/TaskDetailModal';
+import { FocusNowCard } from '../components/tasks/FocusNowCard';
 import { AiPlanTodayModal } from '../components/tasks/AiPlanTodayModal';
 import { useLiveSync } from '../hooks/useLiveSync';
+import { getLocalDateString } from '../utils/taskProgress';
 import { clsx } from 'clsx';
 
 interface AmbitionSlide {
@@ -108,8 +112,11 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
 export const HomeDashboard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [aiPlanTodayOpen, setAiPlanTodayOpen] = useState(false);
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -127,12 +134,14 @@ export const HomeDashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [fetchedTasks, fetchedCats] = await Promise.all([
+      const [fetchedTasks, fetchedCats, fetchedProjects] = await Promise.all([
         taskService.getTasks(),
         categoryService.getCategories(),
+        projectService.getProjects().catch(() => []),
       ]);
       setTasks(fetchedTasks || []);
       setCategories(fetchedCats || []);
+      setProjects(fetchedProjects || []);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     }
@@ -159,11 +168,106 @@ export const HomeDashboard: React.FC = () => {
     const nextStatus = task.status === 'COMPLETED' ? 'TODO' : 'COMPLETED';
     const updated = await taskService.updateTaskStatus(task.id, nextStatus);
     setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+    if (detailTask && detailTask.id === task.id) {
+      setDetailTask(updated);
+    }
   };
 
-  const handleCreateTask = async (taskData: Partial<Task>) => {
-    const created = await taskService.createTask(taskData);
-    setTasks((prev) => [created, ...prev]);
+  const handleStartTask = async (task: Task) => {
+    try {
+      const updated = await taskService.updateTaskStatus(task.id, 'IN_PROGRESS');
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+      if (detailTask && detailTask.id === task.id) {
+        setDetailTask(updated);
+      }
+    } catch (err) {
+      console.error('Failed to start task:', err);
+    }
+  };
+
+  const handleSaveTask = async (taskData: Partial<Task>) => {
+    if (editingTask) {
+      const updated = await taskService.updateTask(editingTask.id, taskData);
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      if (detailTask && detailTask.id === updated.id) {
+        setDetailTask(updated);
+      }
+      setEditingTask(null);
+    } else {
+      const created = await taskService.createTask(taskData);
+      setTasks((prev) => [created, ...prev]);
+    }
+  };
+
+  const handleExtendDeadline = async (task: Task, daysToAdd: number, hoursToAdd?: number) => {
+    const todayStr = getLocalDateString();
+    let newDueDate = task.dueDate || todayStr;
+    let newDueTime = task.dueTime || '18:00';
+
+    if (daysToAdd > 0) {
+      const baseDate = !task.dueDate || task.dueDate < todayStr ? new Date() : new Date(task.dueDate + 'T00:00:00');
+      baseDate.setDate(baseDate.getDate() + daysToAdd);
+      const y = baseDate.getFullYear();
+      const m = String(baseDate.getMonth() + 1).padStart(2, '0');
+      const d = String(baseDate.getDate()).padStart(2, '0');
+      newDueDate = `${y}-${m}-${d}`;
+    }
+
+    if (hoursToAdd && hoursToAdd > 0) {
+      const now = new Date();
+      now.setHours(now.getHours() + hoursToAdd);
+      const h = String(now.getHours()).padStart(2, '0');
+      const min = String(now.getMinutes()).padStart(2, '0');
+      newDueTime = `${h}:${min}`;
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      newDueDate = `${y}-${m}-${d}`;
+    }
+
+    try {
+      const updated = await taskService.updateTask(task.id, {
+        dueDate: newDueDate,
+        dueTime: newDueTime,
+      });
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
+      if (detailTask && detailTask.id === task.id) {
+        setDetailTask(updated);
+      }
+    } catch (err) {
+      console.error('Failed to extend deadline:', err);
+    }
+  };
+
+  const handleAddSubtask = async (parentTaskId: string, title: string) => {
+    try {
+      await taskService.createSubtask(parentTaskId, { title });
+      loadData();
+    } catch (err) {
+      console.error('Failed to add subtask:', err);
+    }
+  };
+
+  const handleToggleSubtaskStatus = async (_parentTaskId: string, subtask: Task) => {
+    try {
+      const nextStatus = subtask.status === 'COMPLETED' ? 'TODO' : 'COMPLETED';
+      await taskService.updateTaskStatus(subtask.id, nextStatus);
+      loadData();
+    } catch (err) {
+      console.error('Failed to toggle subtask status:', err);
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    try {
+      await taskService.deleteTask(id);
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      if (detailTask?.id === id) {
+        setDetailTask(null);
+      }
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
   };
 
   const nextSlide = () => {
@@ -301,6 +405,14 @@ export const HomeDashboard: React.FC = () => {
       </div>
 
 
+      {/* 🎯 Focus Now Daily Execution Section */}
+      <FocusNowCard
+        tasks={tasks}
+        projects={projects}
+        onOpenTask={(task) => setDetailTask(task)}
+        onStartTask={handleStartTask}
+      />
+
       {/* Today's Tasks Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -399,9 +511,13 @@ export const HomeDashboard: React.FC = () => {
       {/* Task Modal Container */}
       <TaskModal
         isOpen={taskModalOpen}
-        onClose={() => setTaskModalOpen(false)}
-        onSave={handleCreateTask}
+        onClose={() => {
+          setTaskModalOpen(false);
+          setEditingTask(null);
+        }}
+        onSave={handleSaveTask}
         categories={categories}
+        initialTask={editingTask || undefined}
       />
 
       {/* AI Plan Today Modal */}
@@ -410,6 +526,31 @@ export const HomeDashboard: React.FC = () => {
         onClose={() => setAiPlanTodayOpen(false)}
         onTasksCreated={() => loadData()}
       />
+
+      {/* Task Detail Modal */}
+      {detailTask && (
+        <TaskDetailModal
+          isOpen={true}
+          task={detailTask}
+          allTasks={tasks}
+          onClose={() => setDetailTask(null)}
+          onEdit={(t) => {
+            setDetailTask(null);
+            setEditingTask(t);
+            setTaskModalOpen(true);
+          }}
+          onToggleStatus={handleToggleTaskStatus}
+          onExtendDeadline={handleExtendDeadline}
+          onAddSubtask={handleAddSubtask}
+          onToggleSubtask={handleToggleSubtaskStatus}
+          onDelete={handleDeleteTask}
+          onUpdateTask={(updated) => {
+            setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+            setDetailTask(updated);
+          }}
+          onSelectTask={(t) => setDetailTask(t)}
+        />
+      )}
     </div>
   );
 };
