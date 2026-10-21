@@ -7,6 +7,7 @@ import { AppLayout } from './components/layout/AppLayout';
 
 import { HomeDashboard } from './pages/HomeDashboard';
 import { TasksPage } from './pages/TasksPage';
+import { GoalsPage } from './pages/GoalsPage';
 import { WebsitesPage } from './pages/WebsitesPage';
 import { NotesPage } from './pages/NotesPage';
 import { DocumentsPage } from './pages/DocumentsPage';
@@ -29,6 +30,7 @@ export function App() {
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<HomeDashboard />} />
                   <Route path="/tasks" element={<TasksPage />} />
+                  <Route path="/goals" element={<GoalsPage />} />
                   <Route path="/websites" element={<WebsitesPage />} />
                   <Route path="/notes" element={<NotesPage />} />
                   <Route path="/documents" element={<DocumentsPage />} />

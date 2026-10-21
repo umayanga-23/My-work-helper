@@ -13,6 +13,7 @@ import {
   BarChart3,
   Settings,
   ShieldAlert,
+  Target,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { name: 'Home', path: '/', icon: LayoutDashboard },
   { name: "Today's Tasks", path: '/tasks', icon: CheckSquare },
+  { name: 'Strategic Goals', path: '/goals', icon: Target },
   { name: 'Websites', path: '/websites', icon: Globe },
   { name: 'Notes & Knowledge', path: '/notes', icon: FileText },
   { name: 'Documents', path: '/documents', icon: FolderArchive },

@@ -24,6 +24,7 @@ import {
   Repeat,
   Target,
   Play,
+  ArrowRight,
   Lock
 } from 'lucide-react';
 import type { Task, Category, TaskStatus, TaskPriority, RecurringTask, RecurringTaskRequest, Project } from '../types';
@@ -1449,24 +1450,13 @@ export const TasksPage: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setViewMode('GOALS')}
-          className={clsx(
-            'px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap',
-            viewMode === 'GOALS'
-              ? 'bg-purple-600 text-white shadow-md'
-              : 'text-[#66736B] dark:text-[#9BB5A5] hover:text-[#17211B] dark:hover:text-[#EAF7EF] hover:bg-purple-50 dark:hover:bg-purple-950/20'
-          )}
+          onClick={() => navigate('/goals')}
+          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap text-[#66736B] dark:text-[#9BB5A5] hover:text-purple-600 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20"
+          title="Open Dedicated Strategic Goals Workspace"
         >
-          <Target className="w-4 h-4 text-purple-300" />
-          <span>🎯 Strategic Goals & Epics</span>
-          <span
-            className={clsx(
-              'px-1.5 py-0.5 text-[10px] rounded-full font-extrabold',
-              viewMode === 'GOALS'
-                ? 'bg-white/20 text-white'
-                : 'bg-purple-100 dark:bg-purple-950/40 text-purple-500'
-            )}
-          >
+          <Target className="w-4 h-4 text-purple-500" />
+          <span>🎯 Strategic Goals</span>
+          <span className="px-1.5 py-0.5 text-[10px] rounded-full font-extrabold bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400">
             {mainTasksList.length}
           </span>
         </button>
@@ -2152,67 +2142,33 @@ export const TasksPage: React.FC = () => {
             </>
           )}
 
-          {/* 🎯 SECTION 2: STRATEGIC GOALS & EPICS */}
-          {(viewMode === 'GOALS' || (viewMode === 'TODAY' && activeTab !== 'TODAY')) && (
-            <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-[#DCE9E1] dark:border-[#20372B] pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
-                    <Briefcase className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-base sm:text-lg font-bold text-[#17211B] dark:text-[#EAF7EF] flex items-center gap-2">
-                      Strategic Goals & Epics
-                      <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                        {mainTasksList.length} Goals & Epics
-                      </span>
-                    </h2>
-                    <p className="text-xs text-[#66736B] dark:text-[#9BB5A5]">
-                      {activeTab === 'COMPLETED'
-                        ? 'Completed strategic goals and architectural epics archive.'
-                        : activeTab === 'IN_PROGRESS'
-                        ? 'Active strategic goals and long-term project epics in progress.'
-                        : activeTab === 'OVERDUE'
-                        ? 'Overdue strategic goals and long-term project milestones.'
-                        : 'Long-term project milestones, architectural epics, and structured step-by-step breakdowns.'}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={openCreateEpic}
-                  className="text-xs font-semibold text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Strategic Goal
-                </button>
+          {/* 🎯 Strategic Goals Dedicated Workspace Link Banner */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-500/5 via-purple-500/10 to-[#5FBF8F]/10 border border-purple-200/60 dark:border-purple-900/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold shrink-0">
+                <Target className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
-
-              <div className="space-y-3">
-                {mainTasksList.length === 0 ? (
-                  <div className="p-8 rounded-2xl bg-[#F3FBF7] dark:bg-[#13261C]/40 border border-dashed border-[#DCE9E1] dark:border-[#20372B] text-center space-y-2">
-                    <CheckCircle2 className="w-8 h-8 text-[#5FBF8F] mx-auto" />
-                    <h4 className="text-sm font-semibold text-[#17211B] dark:text-[#EAF7EF]">
-                      {activeTab === 'COMPLETED'
-                        ? 'No completed strategic goals found'
-                        : activeTab === 'IN_PROGRESS'
-                        ? 'No in-progress strategic goals found'
-                        : activeTab === 'OVERDUE'
-                        ? 'No overdue strategic goals found'
-                        : 'No other strategic goals or epics found'}
-                    </h4>
-                    <p className="text-xs text-[#66736B] dark:text-[#9BB5A5] max-w-md mx-auto">
-                      {activeTab === 'ALL'
-                        ? 'All goals and tasks are either completed or scheduled for today.'
-                        : 'Switch tabs or create a new strategic goal.'}
-                    </p>
-                  </div>
-                ) : (
-                  mainTasksList.map((task) => renderTaskCard(task, true))
-                )}
+              <div>
+                <h3 className="text-sm font-bold text-[#17211B] dark:text-[#EAF7EF] flex items-center gap-2">
+                  <span>Strategic Goals & Long-Term Epics</span>
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                    {mainTasksList.length} Goals
+                  </span>
+                </h3>
+                <p className="text-xs text-[#66736B] dark:text-[#9BB5A5] mt-0.5">
+                  Plan long-term project milestones, architectural roadmaps, and step-by-step breakdowns in the dedicated workspace.
+                </p>
               </div>
             </div>
-          )}
+
+            <button
+              onClick={() => navigate('/goals')}
+              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95"
+            >
+              <span>Open Strategic Goals</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </>
       )}
 
