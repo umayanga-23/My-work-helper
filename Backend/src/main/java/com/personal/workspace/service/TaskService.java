@@ -141,6 +141,7 @@ public class TaskService {
         task.setDependsOnTaskId(request.getDependsOnTaskId());
         task.setRecurringTaskId(request.getRecurringTaskId());
         task.setEstimatedDuration(request.getEstimatedDuration());
+        task.setIsGoal(request.getIsGoal() != null ? request.getIsGoal() : false);
 
         // Generate Jira-style Task Key (e.g. AIU-1 or PRJ-1)
         if (task.getProjectId() != null) {
@@ -211,6 +212,7 @@ public class TaskService {
             }
         }
         if (request.getDependsOnTaskId() != null) task.setDependsOnTaskId(request.getDependsOnTaskId());
+        if (request.getIsGoal() != null) task.setIsGoal(request.getIsGoal());
 
         TaskEntity updated = taskRepository.save(task);
 
@@ -756,6 +758,7 @@ public class TaskService {
 
         dto.setRecurringTaskId(entity.getRecurringTaskId());
         dto.setEstimatedDuration(entity.getEstimatedDuration());
+        dto.setIsGoal(entity.getIsGoal());
         if (entity.getRecurringTaskId() != null) {
             recurringTaskRepository.findById(entity.getRecurringTaskId()).ifPresent(r -> {
                 dto.setRecurringTaskTitle(r.getTitle());

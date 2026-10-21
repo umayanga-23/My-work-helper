@@ -83,6 +83,9 @@ public class TaskEntity {
     @Column(name = "estimated_duration")
     private Integer estimatedDuration;
 
+    @Column(name = "is_goal")
+    private Boolean isGoal = false;
+
     @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TaskResourceEntity> resources = new ArrayList<>();
 
@@ -274,5 +277,13 @@ public class TaskEntity {
 
     public void setEstimatedDuration(Integer estimatedDuration) {
         this.estimatedDuration = estimatedDuration;
+    }
+
+    public Boolean getIsGoal() {
+        return isGoal != null ? isGoal : false;
+    }
+
+    public void setIsGoal(Boolean isGoal) {
+        this.isGoal = isGoal != null ? isGoal : false;
     }
 }

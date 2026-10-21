@@ -1,7 +1,6 @@
 package com.personal.workspace;
 
 import com.personal.workspace.dto.*;
-import com.personal.workspace.entity.TaskEntity;
 import com.personal.workspace.repository.*;
 import com.personal.workspace.service.*;
 import org.junit.jupiter.api.Test;

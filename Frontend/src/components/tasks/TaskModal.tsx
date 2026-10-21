@@ -110,7 +110,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       const initialType = initialTask
-        ? (initialTask.dueDate === todayStr ? 'TODAY' : 'EPIC')
+        ? (initialTask.isGoal ? 'EPIC' : (initialTask.subtasks && initialTask.subtasks.length > 0 ? 'EPIC' : 'TODAY'))
         : (defaultType || 'TODAY');
 
       setTaskType(initialType);
@@ -258,6 +258,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         estimatedDuration: estimatedDuration ? Number(estimatedDuration) : undefined,
         categoryId: categoryId || undefined,
         projectId: projectId || undefined,
+        isGoal: taskType === 'EPIC',
       },
       pendingResources
     );

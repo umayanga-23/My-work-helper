@@ -44,6 +44,7 @@ export interface Task {
   recurringTaskId?: string;
   estimatedDuration?: number;
   recurringTaskTitle?: string;
+  isGoal?: boolean;
 }
 
 export type RecurrenceType = 'DAILY' | 'WEEKLY' | 'MONTHLY';

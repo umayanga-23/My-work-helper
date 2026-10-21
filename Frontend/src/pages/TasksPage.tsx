@@ -43,7 +43,7 @@ import { AiDecomposeModal } from '../components/tasks/AiDecomposeModal';
 import { TaskCalendarView } from '../components/tasks/TaskCalendarView';
 import { RecurringTasksPanel } from '../components/tasks/RecurringTasksPanel';
 import { RecurringTaskModal } from '../components/tasks/RecurringTaskModal';
-import { calculateTaskProgress, generateCompactTrendBar, isTaskFactualOverdue } from '../utils/taskProgress';
+import { calculateTaskProgress, generateCompactTrendBar, isTaskFactualOverdue, isStrategicGoal } from '../utils/taskProgress';
 import { useLiveSync } from '../hooks/useLiveSync';
 import { clsx } from 'clsx';
 
@@ -817,15 +817,25 @@ export const TasksPage: React.FC = () => {
     return d >= monday && d <= sunday;
   };
 
-  // Filter calculations
-  const overdueTasks = tasks.filter((t) => isTaskOverdue(t));
-  const todayTasks = tasks.filter((t) => t.dueDate === todayStr || t.dueDate?.startsWith(todayStr));
-  const inProgressTasks = tasks.filter((t) => t.status === 'IN_PROGRESS' || t.status === 'TODO');
-  const completedTasks = tasks.filter((t) => t.status === 'COMPLETED');
-  const completedTodayTasks = tasks.filter((t) => isTaskCompletedToday(t));
-  const completedThisWeekTasks = tasks.filter((t) => isTaskCompletedThisWeek(t));
+  // Clear separation: Daily Tasks vs Strategic Goals
+  // Daily Tasks: Root tasks that are not strategic goals
+  const dailyTasks = tasks.filter((t: Task) => !t.parentTaskId && !isStrategicGoal(t));
+  const strategicGoals = tasks.filter((t: Task) => !t.parentTaskId && isStrategicGoal(t));
 
-  const filteredTasks = tasks.filter((task) => {
+  const isForToday = (t: Task) =>
+    t.dueDate === todayStr ||
+    t.dueDate?.startsWith(todayStr);
+
+  // Tab counters based strictly on Daily Tasks
+  const overdueDailyTasks = dailyTasks.filter((t) => isTaskOverdue(t));
+  const todayDailyTasks = dailyTasks.filter((t) => isForToday(t));
+  const inProgressDailyTasks = dailyTasks.filter((t) => t.status === 'IN_PROGRESS' || t.status === 'TODO');
+  const completedDailyTasks = dailyTasks.filter((t) => t.status === 'COMPLETED');
+  const completedTodayDailyTasks = dailyTasks.filter((t) => isTaskCompletedToday(t));
+  const completedThisWeekDailyTasks = dailyTasks.filter((t) => isTaskCompletedThisWeek(t));
+
+  // Filter daily tasks according to activeTab, search, and category
+  const filteredDailyTasks = dailyTasks.filter((task) => {
     if (selectedCategory && task.categoryId !== selectedCategory) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -835,7 +845,7 @@ export const TasksPage: React.FC = () => {
       if (!matchTitle && !matchDesc && !matchSub) return false;
     }
     if (activeTab === 'TODAY') {
-      return task.dueDate === todayStr || task.dueDate?.startsWith(todayStr);
+      return isForToday(task);
     }
     if (activeTab === 'OVERDUE') {
       return isTaskOverdue(task);
@@ -853,25 +863,15 @@ export const TasksPage: React.FC = () => {
       }
       return true;
     }
+    // When activeTab === 'ALL', return all daily tasks without losing any
     return true;
   });
 
-  // Split tasks into Today's Tasks vs Strategic Goals / Long-term Tasks
-  // Exclude child subtasks from root card rendering so subtasks stay properly nested inside parent cards
-  const rootTasks = filteredTasks.filter((t: Task) => !t.parentTaskId);
-
-  const isForToday = (t: Task) =>
-    t.dueDate === todayStr ||
-    t.dueDate?.startsWith(todayStr);
-
-  const todayTasksList = rootTasks.filter((t: Task) => isForToday(t));
-  const mainTasksList = rootTasks.filter((t: Task) => !isForToday(t) || (t.subtasks && t.subtasks.length > 0));
-
-  // Extract all subtasks scheduled for today with their parent strategic goal context
+  // Extract all subtasks scheduled for today from Strategic Goals to connect high-level goals with daily execution
   const todaySubtasks = React.useMemo(() => {
     const list: { subtask: Task; parentTask: Task }[] = [];
     tasks.forEach((parent) => {
-      if (!parent.parentTaskId && parent.subtasks && parent.subtasks.length > 0) {
+      if (!parent.parentTaskId && isStrategicGoal(parent) && parent.subtasks && parent.subtasks.length > 0) {
         parent.subtasks.forEach((sub) => {
           if (sub.dueDate === todayStr || sub.dueDate?.startsWith(todayStr)) {
             if (selectedCategory && parent.categoryId !== selectedCategory && sub.categoryId !== selectedCategory) {
@@ -889,6 +889,7 @@ export const TasksPage: React.FC = () => {
               if (completedFilter === 'THIS_WEEK' && !isTaskCompletedThisWeek(sub)) return;
             }
             if (activeTab === 'IN_PROGRESS' && sub.status === 'COMPLETED') return;
+            if (activeTab === 'OVERDUE' && !isTaskOverdue(sub)) return;
             list.push({ subtask: sub, parentTask: parent });
           }
         });
@@ -897,12 +898,12 @@ export const TasksPage: React.FC = () => {
     return list;
   }, [tasks, todayStr, selectedCategory, search, activeTab, completedFilter]);
 
-  const todayTotalItemsCount = todayTasksList.length + todaySubtasks.length;
+  const todayTotalItemsCount = todayDailyTasks.length + todaySubtasks.length;
 
   // Single Documented Source of Truth for Progress & Analytics
   const progressMetrics = React.useMemo(() => {
-    return calculateTaskProgress(tasks);
-  }, [tasks]);
+    return calculateTaskProgress(dailyTasks);
+  }, [dailyTasks]);
 
   let displayTitle = 'Overall Tasks Progress';
   if (activeTab === 'TODAY') {
@@ -994,7 +995,7 @@ export const TasksPage: React.FC = () => {
 
               {/* Actions */}
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {isMainSection && (
+                {!isForToday(task) && task.status !== 'COMPLETED' && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1119,7 +1120,7 @@ export const TasksPage: React.FC = () => {
             <div className="flex items-center justify-between gap-4 text-[11px] flex-wrap pt-1">
               <div className="flex items-center gap-3.5 text-[#8A9890] dark:text-[#6F8A7A] flex-wrap">
                 {/* Date / Time Display */}
-                {!isMainSection ? (
+                {isForToday(task) ? (
                   /* Today's Tasks: show time slot where available (e.g. 09:00 — 09:45) */
                   <span
                     className={clsx(
@@ -1141,7 +1142,7 @@ export const TasksPage: React.FC = () => {
                     )}
                   </span>
                 ) : (
-                  /* Strategic Goals & Epics: show full due date and time slot */
+                  /* Scheduled / Future tasks: show full due date and time slot */
                   task.dueDate && (
                     <span
                       className={clsx(
@@ -1457,7 +1458,7 @@ export const TasksPage: React.FC = () => {
           <Target className="w-4 h-4 text-purple-500" />
           <span>🎯 Strategic Goals</span>
           <span className="px-1.5 py-0.5 text-[10px] rounded-full font-extrabold bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400">
-            {mainTasksList.length}
+            {strategicGoals.length}
           </span>
         </button>
       </div>
@@ -1506,7 +1507,7 @@ export const TasksPage: React.FC = () => {
       {(viewMode === 'TODAY' || viewMode === 'GOALS') && (
         <>
           {/* Overdue / Missed Tasks Review Section (Only shown in Today view) */}
-          {viewMode === 'TODAY' && overdueTasks.length > 0 && showOverdueBanner && (
+          {viewMode === 'TODAY' && overdueDailyTasks.length > 0 && showOverdueBanner && (
             <div className="p-5 rounded-2xl bg-rose-500/10 dark:bg-rose-950/20 border border-rose-500/30 space-y-3.5 animate-in slide-in-from-top-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -1517,7 +1518,7 @@ export const TasksPage: React.FC = () => {
                     <h3 className="text-sm font-bold text-[#17211B] dark:text-[#EAF7EF] flex items-center gap-2">
                       Missed & Overdue Tasks Review
                       <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-rose-500 text-white">
-                        {overdueTasks.length} Overdue
+                        {overdueDailyTasks.length} Overdue
                       </span>
                     </h3>
                     <p className="text-xs text-[#66736B] dark:text-[#9BB5A5]">
@@ -1535,7 +1536,7 @@ export const TasksPage: React.FC = () => {
 
               {/* Overdue Items List */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
-                {overdueTasks.map((t) => (
+                {overdueDailyTasks.map((t) => (
                   <div
                     key={t.id}
                     className="p-3 rounded-xl bg-white dark:bg-[#0E1C15] border border-rose-500/30 flex items-center justify-between gap-3 shadow-xs"
@@ -1841,20 +1842,20 @@ export const TasksPage: React.FC = () => {
                       : 'text-[#66736B] dark:text-[#9BB5A5] hover:text-[#17211B] dark:hover:text-[#EAF7EF] hover:bg-[#E8F7EF] dark:hover:bg-[#1a3324]'
                   )}
                 >
-                  {tab === 'ALL' && `All Sections (${tasks.length})`}
-                  {tab === 'TODAY' && `Today's Focus (${todayTasks.length})`}
+                  {tab === 'ALL' && `All Tasks (${dailyTasks.length})`}
+                  {tab === 'TODAY' && `Today's Focus (${todayDailyTasks.length + todaySubtasks.length})`}
                   {tab === 'OVERDUE' && (
                     <>
                       Overdue
-                      {overdueTasks.length > 0 && (
+                      {overdueDailyTasks.length > 0 && (
                         <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-rose-500 text-white font-bold">
-                          {overdueTasks.length}
+                          {overdueDailyTasks.length}
                         </span>
                       )}
                     </>
                   )}
-                  {tab === 'IN_PROGRESS' && `In Progress (${inProgressTasks.length})`}
-                  {tab === 'COMPLETED' && `Completed (${completedTasks.length})`}
+                  {tab === 'IN_PROGRESS' && `In Progress (${inProgressDailyTasks.length})`}
+                  {tab === 'COMPLETED' && `Completed (${completedDailyTasks.length})`}
                 </button>
               ))}
             </div>
@@ -1913,7 +1914,7 @@ export const TasksPage: React.FC = () => {
                       : 'text-[#66736B] dark:text-[#9BB5A5] hover:text-[#17211B] dark:hover:text-[#EAF7EF]'
                   )}
                 >
-                  All Completed ({completedTasks.length})
+                  All Completed ({completedDailyTasks.length})
                 </button>
                 <button
                   type="button"
@@ -1926,7 +1927,7 @@ export const TasksPage: React.FC = () => {
                   )}
                 >
                   <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Completed Today ({completedTodayTasks.length})</span>
+                  <span>Completed Today ({completedTodayDailyTasks.length})</span>
                 </button>
                 <button
                   type="button"
@@ -1939,7 +1940,7 @@ export const TasksPage: React.FC = () => {
                   )}
                 >
                   <Calendar className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Completed This Week ({completedThisWeekTasks.length})</span>
+                  <span>Completed This Week ({completedThisWeekDailyTasks.length})</span>
                 </button>
               </div>
             </div>
@@ -1959,18 +1960,28 @@ export const TasksPage: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-base sm:text-lg font-bold text-[#17211B] dark:text-[#EAF7EF] flex items-center gap-2">
-                        Today's Execution Tasks
+                        {activeTab === 'ALL'
+                          ? 'All Daily Tasks'
+                          : activeTab === 'TODAY'
+                          ? "Today's Execution Tasks"
+                          : activeTab === 'OVERDUE'
+                          ? 'Overdue Tasks'
+                          : activeTab === 'IN_PROGRESS'
+                          ? 'In-Progress Tasks'
+                          : 'Completed Tasks'}
                         <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] border border-[#5FBF8F]/30">
-                          {todayTotalItemsCount} Planned
+                          {activeTab === 'TODAY' ? todayTotalItemsCount : filteredDailyTasks.length} {activeTab === 'TODAY' ? 'Planned' : 'Tasks'}
                         </span>
                       </h2>
                       <p className="text-xs text-[#66736B] dark:text-[#9BB5A5]">
-                        {activeTab === 'COMPLETED'
-                          ? `Completed daily priority tasks & goal execution steps for today (${todayStr}).`
+                        {activeTab === 'ALL'
+                          ? 'All active and upcoming daily execution tasks.'
+                          : activeTab === 'COMPLETED'
+                          ? 'Completed daily priority tasks & goal execution steps.'
                           : activeTab === 'IN_PROGRESS'
-                          ? `In-progress daily priority tasks & goal execution steps for today (${todayStr}).`
+                          ? 'In-progress daily priority tasks & goal execution steps.'
                           : activeTab === 'OVERDUE'
-                          ? `Overdue daily tasks scheduled for today (${todayStr}).`
+                          ? 'Overdue daily tasks that need attention or rescheduling.'
                           : `Daily priority checklist & strategic goal execution steps scheduled for today (${todayStr}).`}
                       </p>
                     </div>
@@ -1981,12 +1992,12 @@ export const TasksPage: React.FC = () => {
                     className="text-xs font-semibold text-[#237A57] dark:text-[#6DD6A0] hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Add to Today
+                    Add Task
                   </button>
                 </div>
 
                 <div className="space-y-4">
-                  {todayTotalItemsCount === 0 ? (
+                  {filteredDailyTasks.length === 0 && (activeTab !== 'TODAY' || todaySubtasks.length === 0) ? (
                     <div className="p-8 rounded-2xl bg-[#F3FBF7] dark:bg-[#13261C]/40 border border-dashed border-[#DCE9E1] dark:border-[#20372B] text-center space-y-2">
                       <Sun className="w-8 h-8 text-amber-400 mx-auto" />
                       <h4 className="text-sm font-semibold text-[#17211B] dark:text-[#EAF7EF]">
@@ -1997,23 +2008,25 @@ export const TasksPage: React.FC = () => {
                             ? 'No tasks completed this week'
                             : 'No completed tasks'
                           : activeTab === 'IN_PROGRESS'
-                          ? "No in-progress tasks for today — you're all caught up! 🎉"
+                          ? "No in-progress tasks — you're all caught up! 🎉"
                           : activeTab === 'OVERDUE'
-                          ? 'No overdue tasks for today! Great job 👏'
-                          : 'No tasks scheduled for today yet 🎉'}
+                          ? 'No overdue tasks! Great job 👏'
+                          : activeTab === 'TODAY'
+                          ? 'No tasks scheduled for today yet 🎉'
+                          : 'No tasks found in this view'}
                       </h4>
                       <p className="text-xs text-[#66736B] dark:text-[#9BB5A5] max-w-md mx-auto">
                         {activeTab === 'ALL' || activeTab === 'TODAY'
-                          ? 'Pick subtasks from your Strategic Goals & Epics section below using "Do Today" or click "+ Add to Today" to schedule your focus work.'
+                          ? 'Click "+ Add Task" to schedule tasks and organize your workflow.'
                           : 'Switch tabs or add a task to organize your day.'}
                       </p>
                     </div>
                   ) : (
                     <>
-                      {/* Top-Level Tasks Scheduled for Today */}
-                      {todayTasksList.length > 0 && (
+                      {/* Top-Level Tasks */}
+                      {filteredDailyTasks.length > 0 && (
                         <div className="space-y-3">
-                          {todayTasksList.map((task) => renderTaskCard(task, false))}
+                          {filteredDailyTasks.map((task) => renderTaskCard(task))}
                         </div>
                       )}
 
@@ -2152,7 +2165,7 @@ export const TasksPage: React.FC = () => {
                 <h3 className="text-sm font-bold text-[#17211B] dark:text-[#EAF7EF] flex items-center gap-2">
                   <span>Strategic Goals & Long-Term Epics</span>
                   <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/30">
-                    {mainTasksList.length} Goals
+                    {strategicGoals.length} Goals
                   </span>
                 </h3>
                 <p className="text-xs text-[#66736B] dark:text-[#9BB5A5] mt-0.5">

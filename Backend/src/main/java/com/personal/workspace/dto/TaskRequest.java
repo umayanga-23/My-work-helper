@@ -23,6 +23,7 @@ public class TaskRequest {
     private UUID dependsOnTaskId;
     private UUID recurringTaskId;
     private Integer estimatedDuration;
+    private Boolean isGoal = false;
 
     public TaskRequest() {}
 
@@ -61,4 +62,7 @@ public class TaskRequest {
 
     public Integer getEstimatedDuration() { return estimatedDuration; }
     public void setEstimatedDuration(Integer estimatedDuration) { this.estimatedDuration = estimatedDuration; }
+
+    public Boolean getIsGoal() { return isGoal; }
+    public void setIsGoal(Boolean isGoal) { this.isGoal = isGoal; }
 }

@@ -245,3 +245,17 @@ export const calculateTaskProgress = (
     archivedCount
   };
 };
+
+/**
+ * Single source of truth to determine whether a task is a Strategic Goal vs Daily Task.
+ * 1. Child subtasks are NEVER goals (they belong to their parent goal).
+ * 2. Explicit flag: isGoal === true => Strategic Goal; isGoal === false => Daily Task.
+ * 3. Fallback for older tasks: if it has subtasks, it is treated as a Strategic Goal.
+ */
+export const isStrategicGoal = (task: Task): boolean => {
+  if (task.parentTaskId) return false;
+  if (task.isGoal === true) return true;
+  if (task.isGoal === false) return false;
+  return !!(task.subtasks && task.subtasks.length > 0);
+};
+

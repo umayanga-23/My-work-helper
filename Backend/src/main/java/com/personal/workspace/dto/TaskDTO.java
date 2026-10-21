@@ -44,6 +44,7 @@ public class TaskDTO {
     private UUID recurringTaskId;
     private Integer estimatedDuration;
     private String recurringTaskTitle;
+    private Boolean isGoal;
 
     public TaskDTO() {}
 
@@ -142,4 +143,7 @@ public class TaskDTO {
 
     public String getParentTaskKey() { return parentTaskKey; }
     public void setParentTaskKey(String parentTaskKey) { this.parentTaskKey = parentTaskKey; }
+
+    public Boolean getIsGoal() { return isGoal != null ? isGoal : false; }
+    public void setIsGoal(Boolean isGoal) { this.isGoal = isGoal != null ? isGoal : false; }
 }

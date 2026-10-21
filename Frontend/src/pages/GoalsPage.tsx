@@ -30,7 +30,7 @@ import { ideaService } from '../services/ideaService';
 import { TaskModal, PendingTaskResource } from '../components/tasks/TaskModal';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal';
 import { AiDecomposeModal } from '../components/tasks/AiDecomposeModal';
-import { isTaskFactualOverdue, getLocalDateString } from '../utils/taskProgress';
+import { isTaskFactualOverdue, getLocalDateString, isStrategicGoal } from '../utils/taskProgress';
 import { useLiveSync } from '../hooks/useLiveSync';
 import { clsx } from 'clsx';
 
@@ -381,7 +381,7 @@ export const GoalsPage: React.FC = () => {
           setDetailTask(refreshed as Task);
         }
       } else {
-        const created = await taskService.createTask(taskData);
+        const created = await taskService.createTask({ ...taskData, isGoal: true });
         if (pendingResources && pendingResources.length > 0) {
           for (const res of pendingResources) {
             let resId = res.resourceId;
@@ -422,8 +422,8 @@ export const GoalsPage: React.FC = () => {
     }));
   };
 
-  // Filter root tasks (exclude nested subtasks from being rendered as root cards)
-  const rootGoals = tasks.filter((t: Task) => !t.parentTaskId);
+  // Filter only strategic goals (exclude daily tasks and nested child subtasks)
+  const rootGoals = tasks.filter((t: Task) => isStrategicGoal(t));
 
   const filteredGoals = rootGoals.filter((task) => {
     if (selectedCategory && task.categoryId !== selectedCategory) return false;
