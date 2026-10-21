@@ -74,20 +74,6 @@ export const TasksPage: React.FC = () => {
   const [decomposeTask, setDecomposeTask] = useState<Task | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // User-configurable daily workload capacity (in minutes, default 360 = 6 hours)
-  const [dailyCapacityMinutes, setDailyCapacityMinutes] = useState<number>(() => {
-    const saved = localStorage.getItem('aiu_daily_capacity_minutes');
-    if (saved) {
-      const parsed = parseInt(saved, 10);
-      if (!isNaN(parsed) && parsed > 0) return parsed;
-    }
-    return 360;
-  });
-
-  const handleCapacityChange = (newCapacity: number) => {
-    setDailyCapacityMinutes(newCapacity);
-    localStorage.setItem('aiu_daily_capacity_minutes', String(newCapacity));
-  };
 
   const reqSeqRef = useRef(0);
 
@@ -749,18 +735,6 @@ export const TasksPage: React.FC = () => {
     return `${cleanTime} — ${endClean}`;
   };
 
-  const formatWorkloadDuration = (totalMinutes: number): string => {
-    if (totalMinutes <= 0) return '0m';
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    if (hours > 0 && minutes > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    if (hours > 0) {
-      return `${hours}h`;
-    }
-    return `${minutes}m`;
-  };
 
   const formatDueDisplay = (task: Task) => {
     const timeSlot = formatTaskTimeSlot(task.dueTime, task.estimatedDuration);
@@ -924,74 +898,6 @@ export const TasksPage: React.FC = () => {
   // 🟢 Manageable: <= 80% of configured daily capacity
   // 🟠 Heavy: 81% - 100% of configured daily capacity
   // 🔴 Overloaded: > 100% of configured daily capacity
-  const WORKLOAD_THRESHOLDS = {
-    manageableMaxPercent: 80,
-    heavyMaxPercent: 100,
-  };
-
-  type WorkloadIndicator = 'MANAGEABLE' | 'HEAVY' | 'OVERLOADED';
-
-  const getWorkloadIndicator = (
-    estimatedMinutes: number,
-    capacityMinutes: number,
-    thresholds = WORKLOAD_THRESHOLDS
-  ): WorkloadIndicator => {
-    if (capacityMinutes <= 0) return 'OVERLOADED';
-    const percent = (estimatedMinutes / capacityMinutes) * 100;
-    if (percent <= thresholds.manageableMaxPercent) return 'MANAGEABLE';
-    if (percent <= thresholds.heavyMaxPercent) return 'HEAVY';
-    return 'OVERLOADED';
-  };
-
-  // Compute Today's Workload metrics from actual task estimates
-  const workloadMetrics = (() => {
-    let estimated = 0;
-    let completed = 0;
-    let countWithEstimates = 0;
-
-    for (const t of tasks) {
-      if (t.parentTaskId) continue; // Prevent double counting subtasks
-
-      const hasSubtasksForToday = t.subtasks && t.subtasks.some(
-        (s) => s.dueDate === todayStr || s.dueDate?.startsWith(todayStr)
-      );
-
-      if (hasSubtasksForToday && t.subtasks) {
-        for (const s of t.subtasks) {
-          if (s.dueDate === todayStr || s.dueDate?.startsWith(todayStr)) {
-            if (s.estimatedDuration && s.estimatedDuration > 0) {
-              estimated += s.estimatedDuration;
-              countWithEstimates++;
-              if (s.status === 'COMPLETED') {
-                completed += s.estimatedDuration;
-              }
-            }
-          }
-        }
-      } else if (t.dueDate === todayStr || t.dueDate?.startsWith(todayStr)) {
-        if (t.estimatedDuration && t.estimatedDuration > 0) {
-          estimated += t.estimatedDuration;
-          countWithEstimates++;
-          if (t.status === 'COMPLETED') {
-            completed += t.estimatedDuration;
-          }
-        }
-      }
-    }
-
-    const remaining = Math.max(0, estimated - completed);
-    return {
-      estimated,
-      completed,
-      remaining,
-      hasEstimates: countWithEstimates > 0,
-      countWithEstimates,
-    };
-  })();
-
-  const workloadIndicator = workloadMetrics.hasEstimates
-    ? getWorkloadIndicator(workloadMetrics.estimated, dailyCapacityMinutes)
-    : null;
 
   const toggleSubtasksExpand = (taskId: string) => {
     setExpandedSubtasks((prev) => ({
@@ -2294,127 +2200,6 @@ export const TasksPage: React.FC = () => {
                 </div>
               )}
 
-              {/* ⏱️ TODAY'S WORKLOAD ENGINE */}
-              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] shadow-sm space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-[#DCE9E1] dark:border-[#20372B]">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0]">
-                      <Clock className="w-5 h-5 text-[#237A57] dark:text-[#6DD6A0]" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <h2 className="text-base sm:text-lg font-bold text-[#17211B] dark:text-[#EAF7EF] uppercase tracking-wide">
-                          TODAY'S WORKLOAD
-                        </h2>
-                        {workloadMetrics.hasEstimates && workloadIndicator && (
-                          <span
-                            className={clsx(
-                              'px-2.5 py-0.5 text-xs font-bold rounded-full border flex items-center gap-1.5',
-                              workloadIndicator === 'MANAGEABLE'
-                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                                : workloadIndicator === 'HEAVY'
-                                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                                : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
-                            )}
-                          >
-                            {workloadIndicator === 'MANAGEABLE' && '🟢 Manageable'}
-                            {workloadIndicator === 'HEAVY' && '🟠 Heavy'}
-                            {workloadIndicator === 'OVERLOADED' && '🔴 Overloaded'}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-[#66736B] dark:text-[#9BB5A5]">
-                        {workloadMetrics.hasEstimates
-                          ? `Planned daily execution against ${Math.round(dailyCapacityMinutes / 60)}h configured capacity.`
-                          : 'Estimated workload unavailable — add duration estimates to your tasks to track workload.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Configurable Daily Capacity Selector */}
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-[#66736B] dark:text-[#9BB5A5] font-medium">Daily Capacity:</span>
-                    <select
-                      value={dailyCapacityMinutes}
-                      onChange={(e) => handleCapacityChange(Number(e.target.value))}
-                      className="px-2.5 py-1 rounded-xl bg-[#F3FBF7] dark:bg-[#13261C] border border-[#DCE9E1] dark:border-[#20372B] text-xs font-semibold text-[#17211B] dark:text-[#EAF7EF] outline-none focus:border-[#5FBF8F] cursor-pointer"
-                      title="Adjust your planned working capacity for today"
-                    >
-                      <option value={240}>4h (Part-time)</option>
-                      <option value={360}>6h (Focus Day)</option>
-                      <option value={480}>8h (Full Day)</option>
-                      <option value={600}>10h (Extended)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {workloadMetrics.hasEstimates ? (
-                  <div className="space-y-4">
-                    {/* 3 Workload Metrics: Estimated, Completed, Remaining */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="p-3.5 rounded-2xl bg-[#F3FBF7] dark:bg-[#13261C]/50 border border-[#DCE9E1] dark:border-[#20372B]">
-                        <span className="text-[11px] font-bold text-[#8A9890] dark:text-[#6F8A7A] uppercase tracking-wider block">
-                          Estimated
-                        </span>
-                        <span className="text-lg sm:text-xl font-black text-[#17211B] dark:text-[#EAF7EF] mt-0.5 block">
-                          {formatWorkloadDuration(workloadMetrics.estimated)}
-                        </span>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-[#E8F7EF] dark:bg-[#13261C] border border-[#5FBF8F]/20">
-                        <span className="text-[11px] font-bold text-[#237A57] dark:text-[#6DD6A0] uppercase tracking-wider block">
-                          Completed
-                        </span>
-                        <span className="text-lg sm:text-xl font-black text-[#237A57] dark:text-[#6DD6A0] mt-0.5 block">
-                          {formatWorkloadDuration(workloadMetrics.completed)}
-                        </span>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-[#F3FBF7] dark:bg-[#13261C]/50 border border-[#DCE9E1] dark:border-[#20372B]">
-                        <span className="text-[11px] font-bold text-[#8A9890] dark:text-[#6F8A7A] uppercase tracking-wider block">
-                          Remaining
-                        </span>
-                        <span className="text-lg sm:text-xl font-black text-[#17211B] dark:text-[#EAF7EF] mt-0.5 block">
-                          {formatWorkloadDuration(workloadMetrics.remaining)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Workload Progress Bar vs Capacity */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] text-[#66736B] dark:text-[#9BB5A5] font-medium">
-                        <span>
-                          {Math.round((workloadMetrics.completed / Math.max(workloadMetrics.estimated, 1)) * 100)}% Completed of Estimated
-                        </span>
-                        <span>
-                          {Math.round((workloadMetrics.estimated / dailyCapacityMinutes) * 100)}% of {Math.round(dailyCapacityMinutes / 60)}h Capacity
-                        </span>
-                      </div>
-                      <div className="w-full h-2.5 bg-[#E8F7EF] dark:bg-[#13261C] rounded-full overflow-hidden flex border border-[#DCE9E1]/60 dark:border-[#20372B]">
-                        <div
-                          className="h-full bg-[#5FBF8F] dark:bg-[#6DD6A0] transition-all duration-500"
-                          style={{ width: `${Math.min(100, (workloadMetrics.completed / dailyCapacityMinutes) * 100)}%` }}
-                          title={`Completed: ${formatWorkloadDuration(workloadMetrics.completed)}`}
-                        />
-                        <div
-                          className="h-full bg-amber-400/70 dark:bg-amber-500/60 transition-all duration-500"
-                          style={{ width: `${Math.min(Math.max(0, 100 - (workloadMetrics.completed / dailyCapacityMinutes) * 100), (workloadMetrics.remaining / dailyCapacityMinutes) * 100)}%` }}
-                          title={`Remaining: ${formatWorkloadDuration(workloadMetrics.remaining)}`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-2xl bg-[#F3FBF7] dark:bg-[#13261C]/30 border border-dashed border-[#DCE9E1] dark:border-[#20372B] text-center">
-                    <p className="text-xs font-semibold text-[#66736B] dark:text-[#9BB5A5]">
-                      Estimated workload unavailable
-                    </p>
-                    <p className="text-[11px] text-[#8A9890] dark:text-[#6F8A7A] mt-0.5">
-                      Add duration estimates to your today tasks to track planned daily workload and indicators.
-                    </p>
-                  </div>
-                )}
-              </div>
 
               {/* Today's Execution Tasks Card */}
               <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] shadow-sm space-y-4">
