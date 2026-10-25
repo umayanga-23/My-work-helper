@@ -23,12 +23,15 @@ import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Service
@@ -88,7 +91,7 @@ public class TaskService {
                 ? "%" + search.trim().toLowerCase() + "%"
                 : null;
         List<TaskEntity> entities = taskRepository.filterTasks(userId, status, categoryId, projectId, searchPattern);
-        return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
+        return mapToDTOList(entities);
     }
 
     public List<TaskDTO> getTodayTasks(UUID userId) {
@@ -97,14 +100,14 @@ public class TaskService {
             recurringTaskService.generateInstancesForDate(today, userId);
         } catch (Exception ignored) {}
         List<TaskEntity> entities = taskRepository.findByUserIdAndDueDateOrderByDueTimeAsc(userId, today);
-        return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
+        return mapToDTOList(entities);
     }
 
     public List<TaskDTO> getTasksForCalendar(UUID userId, LocalDate startDate, LocalDate endDate) {
         LocalDate start = startDate != null ? startDate : LocalDate.now().withDayOfMonth(1);
         LocalDate end = endDate != null ? endDate : start.plusMonths(1).minusDays(1);
         List<TaskEntity> entities = taskRepository.findByUserIdAndDueDateBetweenOrderByDueDateAscDueTimeAsc(userId, start, end);
-        return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
+        return mapToDTOList(entities);
     }
 
     public TaskDTO getTaskById(UUID userId, UUID id) {
@@ -543,77 +546,199 @@ public class TaskService {
         return minutes + "m";
     }
 
-    private TaskResourceDTO mapResourceToDTO(TaskResourceEntity r, UUID taskId) {
+    private static class TaskBatchContext {
+        Map<UUID, CategoryEntity> categoryMap = Collections.emptyMap();
+        Map<UUID, ProjectEntity> projectMap = Collections.emptyMap();
+        Map<UUID, TaskEntity> refTaskMap = Collections.emptyMap();
+        Map<UUID, RecurringTaskEntity> recurringTaskMap = Collections.emptyMap();
+        Map<UUID, List<TaskDependencyEntity>> blockedByMap = Collections.emptyMap();
+        Map<UUID, List<TaskDependencyEntity>> blocksMap = Collections.emptyMap();
+        Map<UUID, List<TaskGitCommitEntity>> commitsMap = Collections.emptyMap();
+        Map<UUID, WebsiteEntity> websiteMap = Collections.emptyMap();
+        Map<UUID, NoteEntity> noteMap = Collections.emptyMap();
+        Map<UUID, DocumentEntity> docMap = Collections.emptyMap();
+        Map<UUID, DriveLinkEntity> driveMap = Collections.emptyMap();
+        Map<UUID, IdeaEntity> ideaMap = Collections.emptyMap();
+    }
+
+    private TaskBatchContext buildBatchContext(List<TaskEntity> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return new TaskBatchContext();
+        }
+        TaskBatchContext ctx = new TaskBatchContext();
+        Set<UUID> taskIds = new HashSet<>();
+        Set<UUID> categoryIds = new HashSet<>();
+        Set<UUID> projectIds = new HashSet<>();
+        Set<UUID> refTaskIds = new HashSet<>();
+        Set<UUID> recurringTaskIds = new HashSet<>();
+        Set<UUID> websiteIds = new HashSet<>();
+        Set<UUID> noteIds = new HashSet<>();
+        Set<UUID> docIds = new HashSet<>();
+        Set<UUID> driveIds = new HashSet<>();
+        Set<UUID> ideaIds = new HashSet<>();
+
+        Consumer<TaskEntity> collectEntityIds = (t) -> {
+            if (t.getId() != null) taskIds.add(t.getId());
+            if (t.getCategoryId() != null) categoryIds.add(t.getCategoryId());
+            if (t.getProjectId() != null) projectIds.add(t.getProjectId());
+            if (t.getParentTaskId() != null) refTaskIds.add(t.getParentTaskId());
+            if (t.getDependsOnTaskId() != null) refTaskIds.add(t.getDependsOnTaskId());
+            if (t.getRecurringTaskId() != null) recurringTaskIds.add(t.getRecurringTaskId());
+            if (t.getResources() != null) {
+                for (TaskResourceEntity r : t.getResources()) {
+                    if (r.getResourceType() != null && r.getResourceId() != null) {
+                        switch (r.getResourceType()) {
+                            case WEBSITE -> websiteIds.add(r.getResourceId());
+                            case NOTE -> noteIds.add(r.getResourceId());
+                            case DOCUMENT -> docIds.add(r.getResourceId());
+                            case DRIVE_LINK -> driveIds.add(r.getResourceId());
+                            case IDEA -> ideaIds.add(r.getResourceId());
+                            case PROJECT, GITHUB -> projectIds.add(r.getResourceId());
+                        }
+                    }
+                }
+            }
+        };
+
+        for (TaskEntity entity : entities) {
+            collectEntityIds.accept(entity);
+            if (entity.getSubtasks() != null) {
+                for (TaskEntity sub : entity.getSubtasks()) {
+                    collectEntityIds.accept(sub);
+                }
+            }
+        }
+
+        if (!categoryIds.isEmpty()) {
+            ctx.categoryMap = categoryRepository.findAllById(categoryIds).stream()
+                    .collect(Collectors.toMap(CategoryEntity::getId, c -> c));
+        }
+        if (!projectIds.isEmpty()) {
+            ctx.projectMap = projectRepository.findAllById(projectIds).stream()
+                    .collect(Collectors.toMap(ProjectEntity::getId, p -> p));
+        }
+        if (!recurringTaskIds.isEmpty()) {
+            ctx.recurringTaskMap = recurringTaskRepository.findAllById(recurringTaskIds).stream()
+                    .collect(Collectors.toMap(RecurringTaskEntity::getId, r -> r));
+        }
+
+        // Batch fetch dependencies
+        if (!taskIds.isEmpty()) {
+            List<TaskDependencyEntity> allBlockedBy = taskDependencyRepository.findByTaskIdIn(taskIds);
+            ctx.blockedByMap = allBlockedBy.stream()
+                    .collect(Collectors.groupingBy(TaskDependencyEntity::getTaskId));
+            for (TaskDependencyEntity dep : allBlockedBy) {
+                if (dep.getDependsOnTaskId() != null) {
+                    refTaskIds.add(dep.getDependsOnTaskId());
+                }
+            }
+
+            List<TaskDependencyEntity> allBlocks = taskDependencyRepository.findByDependsOnTaskIdIn(taskIds);
+            ctx.blocksMap = allBlocks.stream()
+                    .collect(Collectors.groupingBy(TaskDependencyEntity::getDependsOnTaskId));
+            for (TaskDependencyEntity dep : allBlocks) {
+                if (dep.getTaskId() != null) {
+                    refTaskIds.add(dep.getTaskId());
+                }
+            }
+
+            // Batch fetch git commits
+            List<TaskGitCommitEntity> allCommits = taskGitCommitRepository.findByTaskIdInOrderByTimestampDesc(taskIds);
+            ctx.commitsMap = allCommits.stream()
+                    .collect(Collectors.groupingBy(TaskGitCommitEntity::getTaskId));
+        }
+
+        // Batch fetch all referenced tasks (parents, dependencies, blockedBy) in one query
+        if (!refTaskIds.isEmpty()) {
+            ctx.refTaskMap = taskRepository.findAllById(refTaskIds).stream()
+                    .collect(Collectors.toMap(TaskEntity::getId, t -> t));
+        }
+
+        // Batch fetch all resources in single queries per type
+        if (!websiteIds.isEmpty()) {
+            ctx.websiteMap = websiteRepository.findAllById(websiteIds).stream()
+                    .collect(Collectors.toMap(WebsiteEntity::getId, w -> w));
+        }
+        if (!noteIds.isEmpty()) {
+            ctx.noteMap = noteRepository.findAllById(noteIds).stream()
+                    .collect(Collectors.toMap(NoteEntity::getId, n -> n));
+        }
+        if (!docIds.isEmpty()) {
+            ctx.docMap = documentRepository.findAllById(docIds).stream()
+                    .collect(Collectors.toMap(DocumentEntity::getId, d -> d));
+        }
+        if (!driveIds.isEmpty()) {
+            ctx.driveMap = driveLinkRepository.findAllById(driveIds).stream()
+                    .collect(Collectors.toMap(DriveLinkEntity::getId, d -> d));
+        }
+        if (!ideaIds.isEmpty()) {
+            ctx.ideaMap = ideaRepository.findAllById(ideaIds).stream()
+                    .collect(Collectors.toMap(IdeaEntity::getId, i -> i));
+        }
+
+        return ctx;
+    }
+
+    private TaskResourceDTO mapResourceToDTO(TaskResourceEntity r, UUID taskId, TaskBatchContext ctx) {
         String title = null;
         String url = null;
         if (r.getResourceType() != null && r.getResourceId() != null) {
             switch (r.getResourceType()) {
                 case WEBSITE: {
-                    var webOpt = websiteRepository.findById(r.getResourceId());
-                    if (webOpt.isPresent()) {
-                        title = webOpt.get().getName();
-                        url = webOpt.get().getUrl();
+                    var web = (ctx != null) ? ctx.websiteMap.get(r.getResourceId()) : websiteRepository.findById(r.getResourceId()).orElse(null);
+                    if (web != null) {
+                        title = web.getName();
+                        url = web.getUrl();
                     }
                     break;
                 }
                 case NOTE: {
-                    var noteOpt = noteRepository.findById(r.getResourceId());
-                    if (noteOpt.isPresent()) {
-                        title = noteOpt.get().getTitle();
+                    var note = (ctx != null) ? ctx.noteMap.get(r.getResourceId()) : noteRepository.findById(r.getResourceId()).orElse(null);
+                    if (note != null) {
+                        title = note.getTitle();
                     }
                     break;
                 }
                 case DOCUMENT: {
-                    var docOpt = documentRepository.findById(r.getResourceId());
-                    if (docOpt.isPresent()) {
-                        title = docOpt.get().getName();
-                        url = docOpt.get().getFilePath();
+                    var doc = (ctx != null) ? ctx.docMap.get(r.getResourceId()) : documentRepository.findById(r.getResourceId()).orElse(null);
+                    if (doc != null) {
+                        title = doc.getName();
+                        url = doc.getFilePath();
                     }
                     break;
                 }
                 case DRIVE_LINK: {
-                    var driveOpt = driveLinkRepository.findById(r.getResourceId());
-                    if (driveOpt.isPresent()) {
-                        title = driveOpt.get().getName();
-                        url = driveOpt.get().getUrl();
+                    var drive = (ctx != null) ? ctx.driveMap.get(r.getResourceId()) : driveLinkRepository.findById(r.getResourceId()).orElse(null);
+                    if (drive != null) {
+                        title = drive.getName();
+                        url = drive.getUrl();
                     }
                     break;
                 }
                 case IDEA: {
-                    var ideaOpt = ideaRepository.findById(r.getResourceId());
-                    if (ideaOpt.isPresent()) {
-                        title = ideaOpt.get().getTitle();
+                    var idea = (ctx != null) ? ctx.ideaMap.get(r.getResourceId()) : ideaRepository.findById(r.getResourceId()).orElse(null);
+                    if (idea != null) {
+                        title = idea.getTitle();
                     }
                     break;
                 }
                 case PROJECT: {
-                    var projOpt = projectRepository.findById(r.getResourceId());
-                    if (projOpt.isPresent()) {
-                        title = projOpt.get().getName();
+                    var proj = (ctx != null) ? ctx.projectMap.get(r.getResourceId()) : projectRepository.findById(r.getResourceId()).orElse(null);
+                    if (proj != null) {
+                        title = proj.getName();
                     }
                     break;
                 }
                 case GITHUB: {
-                    var githubProjOpt = projectRepository.findById(r.getResourceId());
-                    if (githubProjOpt.isPresent()) {
-                        var p = githubProjOpt.get();
-                        title = (p.getGithubRepo() != null && !p.getGithubRepo().isBlank()) ? p.getGithubRepo() : (p.getName() + " Repository");
-                        url = (p.getGithubRepo() != null && !p.getGithubRepo().isBlank()) ? ("https://github.com/" + p.getGithubRepo()) : null;
+                    var githubProj = (ctx != null) ? ctx.projectMap.get(r.getResourceId()) : projectRepository.findById(r.getResourceId()).orElse(null);
+                    if (githubProj != null) {
+                        title = (githubProj.getGithubRepo() != null && !githubProj.getGithubRepo().isBlank()) ? githubProj.getGithubRepo() : (githubProj.getName() + " Repository");
+                        url = (githubProj.getGithubRepo() != null && !githubProj.getGithubRepo().isBlank()) ? ("https://github.com/" + githubProj.getGithubRepo()) : null;
                     } else {
-                        var ghWebOpt = websiteRepository.findById(r.getResourceId());
-                        if (ghWebOpt.isPresent()) {
-                            title = ghWebOpt.get().getName();
-                            url = ghWebOpt.get().getUrl();
-                        } else if (taskId != null) {
-                            taskRepository.findById(taskId).ifPresent(t -> {
-                                if (t.getProjectId() != null) {
-                                    projectRepository.findById(t.getProjectId()).ifPresent(p -> {
-                                        if (p.getGithubRepo() != null && !p.getGithubRepo().isBlank()) {
-                                            // fallback to parent project's repo
-                                        }
-                                    });
-                                }
-                            });
+                        var ghWeb = (ctx != null) ? ctx.websiteMap.get(r.getResourceId()) : websiteRepository.findById(r.getResourceId()).orElse(null);
+                        if (ghWeb != null) {
+                            title = ghWeb.getName();
+                            url = ghWeb.getUrl();
                         }
                     }
                     if (title == null || title.startsWith("Resource")) {
@@ -631,7 +756,23 @@ public class TaskService {
         return new TaskResourceDTO(r.getId(), taskId, r.getResourceType(), r.getResourceId(), title, url, r.getCreatedAt());
     }
 
+    private TaskResourceDTO mapResourceToDTO(TaskResourceEntity r, UUID taskId) {
+        return mapResourceToDTO(r, taskId, null);
+    }
+
+    public List<TaskDTO> mapToDTOList(List<TaskEntity> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return Collections.emptyList();
+        }
+        TaskBatchContext ctx = buildBatchContext(entities);
+        return entities.stream().map(e -> mapToDTO(e, ctx)).collect(Collectors.toList());
+    }
+
     private TaskDTO mapToDTO(TaskEntity entity) {
+        return mapToDTO(entity, null);
+    }
+
+    private TaskDTO mapToDTO(TaskEntity entity, TaskBatchContext ctx) {
         TaskDTO dto = new TaskDTO();
         dto.setId(entity.getId());
         dto.setUserId(entity.getUserId());
@@ -652,30 +793,46 @@ public class TaskService {
         dto.setDependsOnTaskId(entity.getDependsOnTaskId());
 
         if (entity.getDependsOnTaskId() != null) {
-            taskRepository.findById(entity.getDependsOnTaskId()).ifPresent(dep -> {
+            TaskEntity dep = (ctx != null) ? ctx.refTaskMap.get(entity.getDependsOnTaskId()) : null;
+            if (dep == null && (ctx == null || !ctx.refTaskMap.containsKey(entity.getDependsOnTaskId()))) {
+                dep = taskRepository.findById(entity.getDependsOnTaskId()).orElse(null);
+            }
+            if (dep != null) {
                 dto.setDependsOnTaskTitle(dep.getTitle());
                 dto.setDependsOnTaskKey(dep.getTaskKey());
-            });
+            }
         }
 
         if (entity.getProjectId() != null) {
-            projectRepository.findById(entity.getProjectId()).ifPresent(proj -> {
+            ProjectEntity proj = (ctx != null) ? ctx.projectMap.get(entity.getProjectId()) : null;
+            if (proj == null && (ctx == null || !ctx.projectMap.containsKey(entity.getProjectId()))) {
+                proj = projectRepository.findById(entity.getProjectId()).orElse(null);
+            }
+            if (proj != null) {
                 dto.setProjectName(proj.getName());
-            });
+            }
         }
 
         if (entity.getParentTaskId() != null) {
-            taskRepository.findById(entity.getParentTaskId()).ifPresent(p -> {
+            TaskEntity p = (ctx != null) ? ctx.refTaskMap.get(entity.getParentTaskId()) : null;
+            if (p == null && (ctx == null || !ctx.refTaskMap.containsKey(entity.getParentTaskId()))) {
+                p = taskRepository.findById(entity.getParentTaskId()).orElse(null);
+            }
+            if (p != null) {
                 dto.setParentTaskTitle(p.getTitle());
                 dto.setParentTaskKey(p.getTaskKey());
-            });
+            }
         }
 
         if (entity.getCategoryId() != null) {
-            categoryRepository.findById(entity.getCategoryId()).ifPresent(cat -> {
+            CategoryEntity cat = (ctx != null) ? ctx.categoryMap.get(entity.getCategoryId()) : null;
+            if (cat == null && (ctx == null || !ctx.categoryMap.containsKey(entity.getCategoryId()))) {
+                cat = categoryRepository.findById(entity.getCategoryId()).orElse(null);
+            }
+            if (cat != null) {
                 dto.setCategoryName(cat.getName());
                 dto.setCategoryColor(cat.getColor());
-            });
+            }
         }
 
         if (entity.getSubtasks() != null && !entity.getSubtasks().isEmpty()) {
@@ -701,43 +858,59 @@ public class TaskService {
                 subDto.setCategoryId(sub.getCategoryId());
                 subDto.setEstimatedDuration(sub.getEstimatedDuration());
                 subDto.setRecurringTaskId(sub.getRecurringTaskId());
+                subDto.setIsGoal(sub.getIsGoal() != null ? sub.getIsGoal() : false);
                 return subDto;
             }).collect(Collectors.toList()));
         }
 
         if (entity.getResources() != null && !entity.getResources().isEmpty()) {
             List<TaskResourceDTO> resourceDTOs = entity.getResources().stream()
-                    .map(r -> mapResourceToDTO(r, entity.getId()))
+                    .map(r -> mapResourceToDTO(r, entity.getId(), ctx))
                     .collect(Collectors.toList());
             dto.setResources(resourceDTOs);
         }
 
-        // Map many-to-many dependencies
-        List<TaskDependencyEntity> blockedByDeps = taskDependencyRepository.findByTaskId(entity.getId());
+        // Map many-to-many dependencies using batch context when available
+        List<TaskDependencyEntity> blockedByDeps = (ctx != null)
+                ? ctx.blockedByMap.getOrDefault(entity.getId(), Collections.emptyList())
+                : taskDependencyRepository.findByTaskId(entity.getId());
         if (!blockedByDeps.isEmpty()) {
             List<TaskDependencyRef> blockedByRefs = blockedByDeps.stream()
-                .map(dep -> taskRepository.findById(dep.getDependsOnTaskId()).map(t ->
-                    new TaskDependencyRef(t.getId(), t.getTaskKey(), t.getTitle(), t.getStatus())
-                ).orElse(null))
-                .filter(ref -> ref != null)
+                .map(dep -> {
+                    TaskEntity t = (ctx != null) ? ctx.refTaskMap.get(dep.getDependsOnTaskId()) : null;
+                    if (t == null && (ctx == null || !ctx.refTaskMap.containsKey(dep.getDependsOnTaskId()))) {
+                        t = taskRepository.findById(dep.getDependsOnTaskId()).orElse(null);
+                    }
+                    return t != null ? new TaskDependencyRef(t.getId(), t.getTaskKey(), t.getTitle(), t.getStatus()) : null;
+                })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
             dto.setBlockedBy(blockedByRefs);
             boolean blocked = blockedByRefs.stream().anyMatch(ref -> ref.status() != TaskStatus.COMPLETED);
             dto.setBlocked(blocked);
         }
-        List<TaskDependencyEntity> blocksDeps = taskDependencyRepository.findByDependsOnTaskId(entity.getId());
+
+        List<TaskDependencyEntity> blocksDeps = (ctx != null)
+                ? ctx.blocksMap.getOrDefault(entity.getId(), Collections.emptyList())
+                : taskDependencyRepository.findByDependsOnTaskId(entity.getId());
         if (!blocksDeps.isEmpty()) {
             List<TaskDependencyRef> blocksRefs = blocksDeps.stream()
-                .map(dep -> taskRepository.findById(dep.getTaskId()).map(t ->
-                    new TaskDependencyRef(t.getId(), t.getTaskKey(), t.getTitle(), t.getStatus())
-                ).orElse(null))
-                .filter(ref -> ref != null)
+                .map(dep -> {
+                    TaskEntity t = (ctx != null) ? ctx.refTaskMap.get(dep.getTaskId()) : null;
+                    if (t == null && (ctx == null || !ctx.refTaskMap.containsKey(dep.getTaskId()))) {
+                        t = taskRepository.findById(dep.getTaskId()).orElse(null);
+                    }
+                    return t != null ? new TaskDependencyRef(t.getId(), t.getTaskKey(), t.getTitle(), t.getStatus()) : null;
+                })
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
             dto.setBlocks(blocksRefs);
         }
 
-        // Map attached Git commits
-        List<TaskGitCommitEntity> commits = taskGitCommitRepository.findByTaskIdOrderByTimestampDesc(entity.getId());
+        // Map attached Git commits using batch context when available
+        List<TaskGitCommitEntity> commits = (ctx != null)
+                ? ctx.commitsMap.getOrDefault(entity.getId(), Collections.emptyList())
+                : taskGitCommitRepository.findByTaskIdOrderByTimestampDesc(entity.getId());
         if (commits != null && !commits.isEmpty()) {
             dto.setGitCommits(commits.stream().map(c -> {
                 TaskGitCommitDTO cDto = new TaskGitCommitDTO();
@@ -758,11 +931,15 @@ public class TaskService {
 
         dto.setRecurringTaskId(entity.getRecurringTaskId());
         dto.setEstimatedDuration(entity.getEstimatedDuration());
-        dto.setIsGoal(entity.getIsGoal());
+        dto.setIsGoal(entity.getIsGoal() != null ? entity.getIsGoal() : false);
         if (entity.getRecurringTaskId() != null) {
-            recurringTaskRepository.findById(entity.getRecurringTaskId()).ifPresent(r -> {
+            RecurringTaskEntity r = (ctx != null) ? ctx.recurringTaskMap.get(entity.getRecurringTaskId()) : null;
+            if (r == null && (ctx == null || !ctx.recurringTaskMap.containsKey(entity.getRecurringTaskId()))) {
+                r = recurringTaskRepository.findById(entity.getRecurringTaskId()).orElse(null);
+            }
+            if (r != null) {
                 dto.setRecurringTaskTitle(r.getTitle());
-            });
+            }
         }
 
         return dto;

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,9 +16,11 @@ public interface TaskDependencyRepository extends JpaRepository<TaskDependencyEn
 
     /** All tasks that taskId depends on (i.e. taskId is blocked by these) */
     List<TaskDependencyEntity> findByTaskId(UUID taskId);
+    List<TaskDependencyEntity> findByTaskIdIn(Collection<UUID> taskIds);
 
     /** All tasks that depend on dependsOnTaskId (i.e. these are blocked by dependsOnTaskId) */
     List<TaskDependencyEntity> findByDependsOnTaskId(UUID dependsOnTaskId);
+    List<TaskDependencyEntity> findByDependsOnTaskIdIn(Collection<UUID> dependsOnTaskIds);
 
     /** Check if a specific dependency already exists */
     Optional<TaskDependencyEntity> findByTaskIdAndDependsOnTaskId(UUID taskId, UUID dependsOnTaskId);

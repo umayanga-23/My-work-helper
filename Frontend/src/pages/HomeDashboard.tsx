@@ -349,6 +349,8 @@ export const HomeDashboard: React.FC = () => {
             <img
               src={slide.image}
               alt={slide.title}
+              loading={idx === 0 ? 'eager' : 'lazy'}
+              decoding="async"
               className="w-full h-full object-cover object-center transform scale-105 transition-transform duration-10000 ease-linear"
             />
           </div>
