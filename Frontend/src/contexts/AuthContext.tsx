@@ -20,11 +20,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('app_user');
+    const savedToken = localStorage.getItem('app_auth_token');
+    // Automatically purge legacy mock dev sessions
+    if (savedToken === 'demo-jwt-token-dev-1001' || saved?.includes('developer@workspace.local') || saved?.includes('usr-dev-1001')) {
+      localStorage.removeItem('app_user');
+      localStorage.removeItem('app_auth_token');
+      return null;
+    }
     return saved ? JSON.parse(saved) : null;
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('app_auth_token') || null;
+    const savedToken = localStorage.getItem('app_auth_token');
+    if (savedToken === 'demo-jwt-token-dev-1001') {
+      localStorage.removeItem('app_auth_token');
+      return null;
+    }
+    return savedToken || null;
   });
 
   const [isDemoMode, setIsDemoMode] = useState<boolean>(() => {

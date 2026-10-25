@@ -39,9 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(jwt)) {
                 UserPrincipal userPrincipal = null;
 
-                if ("demo-jwt-token-dev-1001".equals(jwt)) {
-                    userPrincipal = new UserPrincipal(DEMO_USER_ID, "developer@workspace.local", "ROLE_ADMIN");
-                } else if (jwtService.validateToken(jwt)) {
+                if (jwtService.validateToken(jwt)) {
                     Claims claims = jwtService.getClaimsFromToken(jwt);
                     UUID userId = UUID.fromString(claims.getSubject());
                     String email = claims.get("email", String.class);

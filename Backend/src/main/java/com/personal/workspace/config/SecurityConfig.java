@@ -38,13 +38,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/auth/**",
+                    "/api/health",
                     "/actuator/health",
                     "/error",
                     "/api/analytics/demo-visitor",
-                    "/api/inquiries",
-                    "/api/admin/**"
+                    "/api/inquiries"
                 ).permitAll()
-                .anyRequest().permitAll() // Authorization enforced via JwtAuthenticationFilter and UserPrincipal
+                .anyRequest().authenticated()
             );
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
