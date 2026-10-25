@@ -8,12 +8,15 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ListTree,
+  CornerDownRight,
   Plane,
   Code2,
   Terminal
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Task, Category, Project } from '../types';
+import { Task, TaskStatus, Category, Project } from '../types';
 import { taskService } from '../services/taskService';
 import { categoryService } from '../services/categoryService';
 import { projectService } from '../services/projectService';
@@ -164,12 +167,67 @@ export const HomeDashboard: React.FC = () => {
     loadData();
   }, { intervalMs: 12000 });
 
+  const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
+
+  const toggleTaskExpand = (taskId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setExpandedTasks((prev) => ({
+      ...prev,
+      [taskId]: prev[taskId] !== undefined ? !prev[taskId] : false,
+    }));
+  };
+
   const handleToggleTaskStatus = async (task: Task) => {
-    const nextStatus = task.status === 'COMPLETED' ? 'TODO' : 'COMPLETED';
-    const updated = await taskService.updateTaskStatus(task.id, nextStatus);
+    const nextStatus: TaskStatus = task.status === 'COMPLETED' ? 'TODO' : 'COMPLETED';
+    const updated: Task = { ...task, status: nextStatus };
     setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
     if (detailTask && detailTask.id === task.id) {
       setDetailTask(updated);
+    }
+    try {
+      const serverUpdated = await taskService.updateTaskStatus(task.id, nextStatus);
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? serverUpdated : t)));
+    } catch (err) {
+      console.error('Failed to toggle task status:', err);
+      loadData();
+    }
+  };
+
+  const handleToggleSubtaskStatus = async (parentTaskId: string, subtask: Task) => {
+    const nextStatus: TaskStatus = subtask.status === 'COMPLETED' ? 'TODO' : 'COMPLETED';
+    const updatedSub: Task = { ...subtask, status: nextStatus };
+
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === parentTaskId && t.subtasks) {
+          return {
+            ...t,
+            subtasks: t.subtasks.map((s) => (s.id === subtask.id ? updatedSub : s)),
+          };
+        }
+        if (t.id === subtask.id) {
+          return updatedSub;
+        }
+        return t;
+      })
+    );
+
+    if (detailTask) {
+      if (detailTask.id === parentTaskId && detailTask.subtasks) {
+        setDetailTask({
+          ...detailTask,
+          subtasks: detailTask.subtasks.map((s) => (s.id === subtask.id ? updatedSub : s)),
+        });
+      } else if (detailTask.id === subtask.id) {
+        setDetailTask(updatedSub);
+      }
+    }
+
+    try {
+      await taskService.updateTaskStatus(subtask.id, nextStatus);
+    } catch (err) {
+      console.error('Failed to toggle subtask status:', err);
+      loadData();
     }
   };
 
@@ -248,15 +306,6 @@ export const HomeDashboard: React.FC = () => {
     }
   };
 
-  const handleToggleSubtaskStatus = async (_parentTaskId: string, subtask: Task) => {
-    try {
-      const nextStatus = subtask.status === 'COMPLETED' ? 'TODO' : 'COMPLETED';
-      await taskService.updateTaskStatus(subtask.id, nextStatus);
-      loadData();
-    } catch (err) {
-      console.error('Failed to toggle subtask status:', err);
-    }
-  };
 
   const handleDeleteTask = async (id: string) => {
     try {
@@ -438,73 +487,213 @@ export const HomeDashboard: React.FC = () => {
         </div>
 
         <div className="space-y-3">
-          {tasks.length === 0 ? (
-            <div className="p-8 rounded-2xl bg-[#FFFFFF] dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] text-center space-y-2">
-              <CheckCircle2 className="w-10 h-10 text-[#5FBF8F] mx-auto" />
-              <h4 className="font-semibold text-[#17211B] dark:text-[#EAF7EF] text-sm">No tasks for today 🎉</h4>
-              <p className="text-xs text-[#66736B] dark:text-[#9BB5A5]">Enjoy your focus time or create a new task.</p>
-            </div>
-          ) : (
-            tasks.map((task) => {
+          {(() => {
+            const rootTasks = tasks.filter((t: Task) => !t.parentTaskId);
+            const rootTaskIds = new Set(rootTasks.map((t) => t.id));
+            const orphanedSubtasks = tasks.filter((t: Task) => t.parentTaskId && !rootTaskIds.has(t.parentTaskId));
+            const displayTasks = [...rootTasks, ...orphanedSubtasks];
+
+            if (displayTasks.length === 0) {
+              return (
+                <div className="p-8 rounded-2xl bg-[#FFFFFF] dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] text-center space-y-2">
+                  <CheckCircle2 className="w-10 h-10 text-[#5FBF8F] mx-auto" />
+                  <h4 className="font-semibold text-[#17211B] dark:text-[#EAF7EF] text-sm">No tasks for today 🎉</h4>
+                  <p className="text-xs text-[#66736B] dark:text-[#9BB5A5]">Enjoy your focus time or create a new task.</p>
+                </div>
+              );
+            }
+
+            return displayTasks.map((task) => {
               const isCompleted = task.status === 'COMPLETED';
+              const subtasks = task.subtasks || [];
+              const subtaskCount = subtasks.length;
+              const completedSubtasks = subtasks.filter((s) => s.status === 'COMPLETED').length;
+              const progressPercent = subtaskCount > 0 ? Math.round((completedSubtasks / subtaskCount) * 100) : 0;
+              const isExpanded = expandedTasks[task.id] !== undefined ? expandedTasks[task.id] : true;
+              const isOrphan = !!task.parentTaskId && !rootTaskIds.has(task.parentTaskId);
+
               return (
                 <div
                   key={task.id}
+                  onClick={() => setDetailTask(task)}
                   className={clsx(
-                    'p-4 rounded-2xl border transition-all duration-200 flex items-start gap-3.5 shadow-xs',
+                    'p-4 rounded-2xl border transition-all duration-200 shadow-xs cursor-pointer group',
                     isCompleted
-                      ? 'bg-[#E8F7EF]/50 dark:bg-[#13261C]/50 border-[#5FBF8F]/40 opacity-80'
+                      ? 'bg-[#E8F7EF]/50 dark:bg-[#13261C]/50 border-[#5FBF8F]/40 opacity-85'
                       : 'bg-[#FFFFFF] dark:bg-[#0E1C15] border-[#DCE9E1] dark:border-[#20372B] hover:border-[#5FBF8F] dark:hover:border-[#6DD6A0]'
                   )}
                 >
-                  {/* Checkbox with Primary Green */}
-                  <button
-                    onClick={() => handleToggleTaskStatus(task)}
-                    className={clsx(
-                      'mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer',
-                      isCompleted
-                        ? 'bg-[#5FBF8F] border-[#5FBF8F] text-white'
-                        : 'border-[#DCE9E1] dark:border-[#20372B] hover:border-[#5FBF8F] bg-white dark:bg-[#0E1C15] text-transparent'
-                    )}
-                    title={isCompleted ? 'Mark as incomplete' : 'Mark as completed'}
-                  >
-                    <CheckSquare className="w-3.5 h-3.5 fill-current" />
-                  </button>
+                  {/* Main Task Header Row */}
+                  <div className="flex items-start gap-3.5">
+                    {/* Checkbox with Primary Green */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleTaskStatus(task);
+                      }}
+                      className={clsx(
+                        'mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all flex-shrink-0 cursor-pointer',
+                        isCompleted
+                          ? 'bg-[#5FBF8F] border-[#5FBF8F] text-white'
+                          : 'border-[#DCE9E1] dark:border-[#20372B] hover:border-[#5FBF8F] bg-white dark:bg-[#0E1C15] text-transparent'
+                      )}
+                      title={isCompleted ? 'Mark as incomplete' : 'Mark as completed'}
+                    >
+                      <CheckSquare className="w-3.5 h-3.5 fill-current" />
+                    </button>
 
-                  {/* Task Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <h4
-                        className={clsx(
-                          'text-sm font-semibold transition-all truncate',
-                          isCompleted
-                            ? 'line-through text-[#66736B] dark:text-[#9BB5A5]'
-                            : 'text-[#17211B] dark:text-[#EAF7EF]'
+                    {/* Task Title & Metadata */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <h4
+                            className={clsx(
+                              'text-sm font-semibold transition-all truncate',
+                              isCompleted
+                                ? 'line-through text-[#66736B] dark:text-[#9BB5A5]'
+                                : 'text-[#17211B] dark:text-[#EAF7EF]'
+                            )}
+                          >
+                            {task.title}
+                          </h4>
+
+                          {isOrphan && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center gap-1">
+                              <CornerDownRight className="w-3 h-3" />
+                              Subtask of: {task.parentTaskTitle || 'Main Task'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Subtasks Badge with Expand / Collapse Toggle */}
+                        {subtaskCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => toggleTaskExpand(task.id, e)}
+                            className={clsx(
+                              'px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer border shadow-2xs',
+                              completedSubtasks === subtaskCount && subtaskCount > 0
+                                ? 'bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] border-[#5FBF8F]/40'
+                                : 'bg-[#F3FBF7] dark:bg-[#13261C]/60 text-[#237A57] dark:text-[#6DD6A0] border-[#DCE9E1] dark:border-[#20372B] hover:border-[#5FBF8F]'
+                            )}
+                            title={isExpanded ? 'Collapse subtasks' : 'Expand subtasks'}
+                          >
+                            <ListTree className="w-3.5 h-3.5 text-[var(--color-primary)]" />
+                            <span>{completedSubtasks}/{subtaskCount} Subtasks</span>
+                            {isExpanded ? (
+                              <ChevronDown className="w-3.5 h-3.5 text-[#8A9890] transition-transform" />
+                            ) : (
+                              <ChevronRight className="w-3.5 h-3.5 text-[#8A9890] transition-transform" />
+                            )}
+                          </button>
                         )}
-                      >
-                        {task.title}
-                      </h4>
-                    </div>
+                      </div>
 
-                    <div className="flex items-center gap-3 text-[11px] text-[#66736B] dark:text-[#9BB5A5] flex-wrap">
-                      <span className="flex items-center gap-1 font-medium text-amber-500 dark:text-amber-400">
-                        <Clock className="w-3 h-3" />
-                        {task.dueTime ? `Due ${task.dueTime.slice(0, 5)}` : 'Today'}
-                      </span>
-                      {task.categoryName && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] border border-[#DCE9E1] dark:border-[#20372B]">
-                          {task.categoryName}
+                      {/* Mini Progress Bar if Subtasks Exist */}
+                      {subtaskCount > 0 && (
+                        <div className="w-full bg-[#DCE9E1]/60 dark:bg-[#20372B]/60 h-1.5 rounded-full overflow-hidden my-1.5">
+                          <div
+                            className="h-full bg-gradient-to-r from-[#5FBF8F] to-[#237A57] dark:from-[#48A375] dark:to-[#6DD6A0] rounded-full transition-all duration-300"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Metadata Row */}
+                      <div className="flex items-center gap-3 text-[11px] text-[#66736B] dark:text-[#9BB5A5] flex-wrap mt-1">
+                        <span className="flex items-center gap-1 font-medium text-amber-500 dark:text-amber-400">
+                          <Clock className="w-3 h-3" />
+                          {task.dueTime ? `Due ${task.dueTime.slice(0, 5)}` : 'Today'}
                         </span>
-                      )}
-                      {task.projectName && (
-                        <span className="text-[#237A57] dark:text-[#6DD6A0] font-medium">📁 {task.projectName}</span>
-                      )}
+                        {task.categoryName && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] border border-[#DCE9E1] dark:border-[#20372B]">
+                            {task.categoryName}
+                          </span>
+                        )}
+                        {task.projectName && (
+                          <span className="text-[#237A57] dark:text-[#6DD6A0] font-medium">📁 {task.projectName}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* 🌳 Nested Hierarchical Subtasks Section */}
+                  {isExpanded && subtaskCount > 0 && (
+                    <div className="mt-3 pt-3 border-t border-[#DCE9E1]/50 dark:border-[#20372B]/50 ml-2 sm:ml-6 pl-3 sm:pl-4 border-l-2 border-[#5FBF8F]/40 dark:border-[#5FBF8F]/30 space-y-2">
+                      <div className="text-[10px] font-bold text-[#8A9890] dark:text-[#6F8A7A] uppercase tracking-wider flex items-center justify-between">
+                        <span className="flex items-center gap-1">
+                          <CornerDownRight className="w-3 h-3 text-[#5FBF8F]" />
+                          Subtasks ({completedSubtasks}/{subtaskCount} Done)
+                        </span>
+                        <span className="text-[10px] font-mono font-semibold text-[#237A57] dark:text-[#6DD6A0]">
+                          {progressPercent}%
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {subtasks.map((sub) => {
+                          const isSubDone = sub.status === 'COMPLETED';
+                          return (
+                            <div
+                              key={sub.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDetailTask(sub);
+                              }}
+                              className={clsx(
+                                'p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2.5 group/sub cursor-pointer',
+                                isSubDone
+                                  ? 'bg-[#E8F7EF]/30 dark:bg-[#13261C]/30 border-[#5FBF8F]/20 opacity-75'
+                                  : 'bg-white/80 dark:bg-[#0E1C15]/80 border-[#DCE9E1]/60 dark:border-[#20372B]/60 hover:border-[#5FBF8F] dark:hover:border-[#6DD6A0] hover:shadow-2xs'
+                              )}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleSubtaskStatus(task.id, sub);
+                                  }}
+                                  className={clsx(
+                                    'w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 cursor-pointer',
+                                    isSubDone
+                                      ? 'bg-[#5FBF8F] border-[#5FBF8F] text-white'
+                                      : 'border-[#DCE9E1] dark:border-[#20372B] hover:border-[#5FBF8F] bg-white dark:bg-[#0E1C15]'
+                                  )}
+                                  title={isSubDone ? 'Mark as incomplete' : 'Mark as complete'}
+                                >
+                                  {isSubDone && <CheckSquare className="w-3 h-3 fill-current" />}
+                                </button>
+                                <span
+                                  className={clsx(
+                                    'text-xs font-medium truncate',
+                                    isSubDone
+                                      ? 'line-through text-[#8A9890] dark:text-[#6F8A7A]'
+                                      : 'text-[#17211B] dark:text-[#EAF7EF]'
+                                  )}
+                                >
+                                  {sub.title}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                {sub.dueTime && (
+                                  <span className="text-[10px] text-[#8A9890] dark:text-[#6F8A7A] flex items-center gap-1 font-mono">
+                                    <Clock className="w-3 h-3 text-amber-500/80" />
+                                    {sub.dueTime.slice(0, 5)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
-            })
-          )}
+            });
+          })()}
         </div>
       </div>
 
