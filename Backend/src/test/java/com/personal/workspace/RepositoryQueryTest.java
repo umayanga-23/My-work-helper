@@ -75,10 +75,10 @@ public class RepositoryQueryTest {
         assertNotNull(taskRepository.filterTasks(DEMO_USER_ID, null, null, null, null));
         assertNotNull(projectRepository.filterProjects(DEMO_USER_ID, null, null));
         assertNotNull(websiteRepository.filterWebsites(DEMO_USER_ID, null, null, null, null));
-        assertNotNull(noteRepository.filterNotes(DEMO_USER_ID, null, null, null, null, null));
+        assertNotNull(noteRepository.filterNotes(DEMO_USER_ID, null, null, null, null, null, null));
         assertNotNull(ideaRepository.filterIdeas(DEMO_USER_ID, null, null));
-        assertNotNull(driveLinkRepository.filterDriveLinks(DEMO_USER_ID, null, null, null, null));
-        assertNotNull(documentRepository.filterDocuments(DEMO_USER_ID, null, null, null));
+        assertNotNull(driveLinkRepository.filterDriveLinks(DEMO_USER_ID, null, null, null, null, null));
+        assertNotNull(documentRepository.filterDocuments(DEMO_USER_ID, null, null, null, null));
     }
 
     @Test

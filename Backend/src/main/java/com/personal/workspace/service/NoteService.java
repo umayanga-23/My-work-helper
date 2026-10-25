@@ -5,6 +5,7 @@ import com.personal.workspace.dto.NoteRequest;
 import com.personal.workspace.entity.NoteEntity;
 import com.personal.workspace.exception.ResourceNotFoundException;
 import com.personal.workspace.repository.CategoryRepository;
+import com.personal.workspace.repository.FolderRepository;
 import com.personal.workspace.repository.NoteRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,20 +22,29 @@ public class NoteService {
 
     private final NoteRepository noteRepository;
     private final CategoryRepository categoryRepository;
+    private final FolderRepository folderRepository;
     private final ActivityLogService activityLogService;
 
-    public NoteService(NoteRepository noteRepository, CategoryRepository categoryRepository, ActivityLogService activityLogService) {
+    public NoteService(NoteRepository noteRepository,
+                       CategoryRepository categoryRepository,
+                       FolderRepository folderRepository,
+                       ActivityLogService activityLogService) {
         this.noteRepository = noteRepository;
         this.categoryRepository = categoryRepository;
+        this.folderRepository = folderRepository;
         this.activityLogService = activityLogService;
     }
 
-    public List<NoteDTO> getNotes(UUID userId, UUID categoryId, UUID projectId, Boolean isFavorite, Boolean isArchived, String search) {
+    public List<NoteDTO> getNotes(UUID userId, UUID folderId, UUID categoryId, UUID projectId, Boolean isFavorite, Boolean isArchived, String search) {
         String searchPattern = (search != null && !search.trim().isEmpty())
                 ? "%" + search.trim().toLowerCase() + "%"
                 : null;
-        List<NoteEntity> entities = noteRepository.filterNotes(userId, categoryId, projectId, isFavorite, isArchived, searchPattern);
+        List<NoteEntity> entities = noteRepository.filterNotes(userId, folderId, categoryId, projectId, isFavorite, isArchived, searchPattern);
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
+    }
+
+    public List<NoteDTO> getNotes(UUID userId, UUID categoryId, UUID projectId, Boolean isFavorite, Boolean isArchived, String search) {
+        return getNotes(userId, null, categoryId, projectId, isFavorite, isArchived, search);
     }
 
     public NoteDTO getNoteById(UUID userId, UUID id) {
@@ -52,6 +62,7 @@ public class NoteService {
         note.setTags(request.getTags() != null ? String.join(",", request.getTags()) : null);
         note.setFavorite(request.isFavorite());
         note.setArchived(request.isArchived());
+        note.setFolderId(request.getFolderId());
         note.setCategoryId(request.getCategoryId());
         note.setProjectId(request.getProjectId());
 
@@ -72,13 +83,11 @@ public class NoteService {
         note.setTags(request.getTags() != null ? String.join(",", request.getTags()) : null);
         note.setFavorite(request.isFavorite());
         note.setArchived(request.isArchived());
+        if (request.getFolderId() != null) note.setFolderId(request.getFolderId());
         note.setCategoryId(request.getCategoryId());
         note.setProjectId(request.getProjectId());
 
         NoteEntity updated = noteRepository.save(note);
-        if (updated.getProjectId() != null) {
-            activityLogService.logSafe(userId, updated.getProjectId(), "Note updated", "NOTE", updated.getId(), updated.getTitle());
-        }
         return mapToDTO(updated);
     }
 
@@ -93,13 +102,18 @@ public class NoteService {
     }
 
     @Transactional
-    public NoteDTO toggleArchive(UUID userId, UUID id) {
+    public NoteDTO toggleArchived(UUID userId, UUID id) {
         NoteEntity note = noteRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Note not found with id: " + id));
 
         note.setArchived(!note.isArchived());
         NoteEntity updated = noteRepository.save(note);
         return mapToDTO(updated);
+    }
+
+    @Transactional
+    public NoteDTO toggleArchive(UUID userId, UUID id) {
+        return toggleArchived(userId, id);
     }
 
     @Transactional
@@ -115,6 +129,7 @@ public class NoteService {
         dto.setUserId(entity.getUserId());
         dto.setProjectId(entity.getProjectId());
         dto.setCategoryId(entity.getCategoryId());
+        dto.setFolderId(entity.getFolderId());
         dto.setTitle(entity.getTitle());
         dto.setContent(entity.getContent());
         
@@ -130,9 +145,11 @@ public class NoteService {
         dto.setUpdatedAt(entity.getUpdatedAt());
 
         if (entity.getCategoryId() != null) {
-            categoryRepository.findById(entity.getCategoryId()).ifPresent(cat -> {
-                dto.setCategoryName(cat.getName());
-            });
+            categoryRepository.findById(entity.getCategoryId()).ifPresent(cat -> dto.setCategoryName(cat.getName()));
+        }
+
+        if (entity.getFolderId() != null) {
+            folderRepository.findById(entity.getFolderId()).ifPresent(f -> dto.setFolderName(f.getName()));
         }
 
         return dto;

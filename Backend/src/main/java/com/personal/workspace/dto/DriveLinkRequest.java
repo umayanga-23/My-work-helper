@@ -17,6 +17,7 @@ public class DriveLinkRequest {
     private boolean isFavorite = false;
     private UUID categoryId;
     private UUID projectId;
+    private UUID folderId;
 
     public DriveLinkRequest() {}
 
@@ -45,4 +46,7 @@ public class DriveLinkRequest {
 
     public UUID getProjectId() { return projectId; }
     public void setProjectId(UUID projectId) { this.projectId = projectId; }
+
+    public UUID getFolderId() { return folderId; }
+    public void setFolderId(UUID folderId) { this.folderId = folderId; }
 }

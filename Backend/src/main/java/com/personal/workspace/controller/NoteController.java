@@ -28,13 +28,14 @@ public class NoteController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<NoteDTO>>> getNotes(
             @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) UUID folderId,
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) UUID projectId,
             @RequestParam(required = false) Boolean isFavorite,
             @RequestParam(required = false) Boolean isArchived,
             @RequestParam(required = false) String search) {
         UUID userId = principal != null ? principal.getId() : DEMO_USER_ID;
-        List<NoteDTO> notes = noteService.getNotes(userId, categoryId, projectId, isFavorite, isArchived, search);
+        List<NoteDTO> notes = noteService.getNotes(userId, folderId, categoryId, projectId, isFavorite, isArchived, search);
         return ResponseEntity.ok(ApiResponse.success(notes));
     }
 

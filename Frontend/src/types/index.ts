@@ -177,6 +177,8 @@ export interface Note {
   userId: string;
   projectId?: string;
   categoryId?: string;
+  folderId?: string;
+  folderName?: string;
   title: string;
   content: string;
   tags?: string[];
@@ -195,6 +197,8 @@ export interface DocumentItem {
   userId: string;
   projectId?: string;
   categoryId?: string;
+  folderId?: string;
+  folderName?: string;
   name: string;
   originalFileName: string;
   filePath: string;
@@ -210,6 +214,22 @@ export interface DocumentItem {
   categoryName?: string;
   projectName?: string;
   downloadUrl?: string;
+}
+
+export interface FolderItem {
+  id: string;
+  userId: string;
+  parentId?: string;
+  name: string;
+  type: 'DOCUMENT' | 'NOTE' | 'DRIVE' | 'GENERAL';
+  color?: string;
+  icon?: string;
+  position?: number;
+  itemCount?: number;
+  subFolderCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  children?: FolderItem[];
 }
 
 export type ResourcePlatform =
@@ -229,6 +249,8 @@ export interface DriveLink {
   userId: string;
   projectId?: string;
   categoryId?: string;
+  folderId?: string;
+  folderName?: string;
   name: string;
   url: string;
   resourceType?: ResourcePlatform | string;

@@ -22,6 +22,7 @@ public class DocumentRequest {
 
     private UUID categoryId;
     private UUID projectId;
+    private UUID folderId;
     private Boolean isFavorite;
     private String description;
     private String tags;
@@ -48,6 +49,9 @@ public class DocumentRequest {
 
     public UUID getProjectId() { return projectId; }
     public void setProjectId(UUID projectId) { this.projectId = projectId; }
+
+    public UUID getFolderId() { return folderId; }
+    public void setFolderId(UUID folderId) { this.folderId = folderId; }
 
     public Boolean getIsFavorite() { return isFavorite; }
     public void setIsFavorite(Boolean isFavorite) { this.isFavorite = isFavorite; }

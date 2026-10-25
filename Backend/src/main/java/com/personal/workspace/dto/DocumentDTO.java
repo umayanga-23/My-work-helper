@@ -8,6 +8,7 @@ public class DocumentDTO {
     private UUID userId;
     private UUID projectId;
     private UUID categoryId;
+    private UUID folderId;
     private String name;
     private String originalFileName;
     private String filePath;
@@ -17,6 +18,7 @@ public class DocumentDTO {
     private ZonedDateTime updatedAt;
     private String categoryName;
     private String projectName;
+    private String folderName;
     private String downloadUrl;
     private Boolean isFavorite = false;
     private String description;
@@ -35,6 +37,12 @@ public class DocumentDTO {
 
     public UUID getCategoryId() { return categoryId; }
     public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
+
+    public UUID getFolderId() { return folderId; }
+    public void setFolderId(UUID folderId) { this.folderId = folderId; }
+
+    public String getFolderName() { return folderName; }
+    public void setFolderName(String folderName) { this.folderName = folderName; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

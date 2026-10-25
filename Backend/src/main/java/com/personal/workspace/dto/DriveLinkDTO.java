@@ -8,6 +8,7 @@ public class DriveLinkDTO {
     private UUID userId;
     private UUID projectId;
     private UUID categoryId;
+    private UUID folderId;
     private String name;
     private String url;
     private String resourceType;
@@ -18,6 +19,7 @@ public class DriveLinkDTO {
     private ZonedDateTime updatedAt;
     private String categoryName;
     private String projectName;
+    private String folderName;
 
     public DriveLinkDTO() {}
 
@@ -32,6 +34,12 @@ public class DriveLinkDTO {
 
     public UUID getCategoryId() { return categoryId; }
     public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
+
+    public UUID getFolderId() { return folderId; }
+    public void setFolderId(UUID folderId) { this.folderId = folderId; }
+
+    public String getFolderName() { return folderName; }
+    public void setFolderName(String folderName) { this.folderName = folderName; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

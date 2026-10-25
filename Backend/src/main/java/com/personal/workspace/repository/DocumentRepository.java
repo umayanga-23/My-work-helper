@@ -15,12 +15,16 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> 
     List<DocumentEntity> findByUserIdOrderByCreatedAtDesc(UUID userId);
     Optional<DocumentEntity> findByIdAndUserId(UUID id, UUID userId);
 
+    long countByUserIdAndFolderId(UUID userId, UUID folderId);
+
     @Query("SELECT d FROM DocumentEntity d WHERE d.userId = :userId AND " +
+           "(:folderId IS NULL OR d.folderId = :folderId) AND " +
            "(:categoryId IS NULL OR d.categoryId = :categoryId) AND " +
            "(:projectId IS NULL OR d.projectId = :projectId) AND " +
            "(:search IS NULL OR LOWER(d.name) LIKE :search OR (d.originalFileName IS NOT NULL AND LOWER(d.originalFileName) LIKE :search)) " +
            "ORDER BY d.createdAt DESC")
     List<DocumentEntity> filterDocuments(@Param("userId") UUID userId,
+                                         @Param("folderId") UUID folderId,
                                          @Param("categoryId") UUID categoryId,
                                          @Param("projectId") UUID projectId,
                                          @Param("search") String search);

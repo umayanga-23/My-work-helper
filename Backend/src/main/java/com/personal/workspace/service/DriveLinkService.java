@@ -6,6 +6,7 @@ import com.personal.workspace.entity.DriveLinkEntity;
 import com.personal.workspace.exception.ResourceNotFoundException;
 import com.personal.workspace.repository.CategoryRepository;
 import com.personal.workspace.repository.DriveLinkRepository;
+import com.personal.workspace.repository.FolderRepository;
 import com.personal.workspace.repository.ProjectRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,24 +22,31 @@ public class DriveLinkService {
     private final DriveLinkRepository driveLinkRepository;
     private final CategoryRepository categoryRepository;
     private final ProjectRepository projectRepository;
+    private final FolderRepository folderRepository;
     private final ActivityLogService activityLogService;
 
     public DriveLinkService(DriveLinkRepository driveLinkRepository,
                             CategoryRepository categoryRepository,
                             ProjectRepository projectRepository,
+                            FolderRepository folderRepository,
                             ActivityLogService activityLogService) {
         this.driveLinkRepository = driveLinkRepository;
         this.categoryRepository = categoryRepository;
         this.projectRepository = projectRepository;
+        this.folderRepository = folderRepository;
         this.activityLogService = activityLogService;
     }
 
-    public List<DriveLinkDTO> getDriveLinks(UUID userId, UUID categoryId, UUID projectId, Boolean isFavorite, String search) {
+    public List<DriveLinkDTO> getDriveLinks(UUID userId, UUID folderId, UUID categoryId, UUID projectId, Boolean isFavorite, String search) {
         String searchPattern = (search != null && !search.trim().isEmpty())
                 ? "%" + search.trim().toLowerCase() + "%"
                 : null;
-        List<DriveLinkEntity> entities = driveLinkRepository.filterDriveLinks(userId, categoryId, projectId, isFavorite, searchPattern);
+        List<DriveLinkEntity> entities = driveLinkRepository.filterDriveLinks(userId, folderId, categoryId, projectId, isFavorite, searchPattern);
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
+    }
+
+    public List<DriveLinkDTO> getDriveLinks(UUID userId, UUID categoryId, UUID projectId, Boolean isFavorite, String search) {
+        return getDriveLinks(userId, null, categoryId, projectId, isFavorite, search);
     }
 
     public DriveLinkDTO getDriveLinkById(UUID userId, UUID id) {
@@ -62,6 +70,7 @@ public class DriveLinkService {
         link.setDescription(request.getDescription());
         link.setTags(request.getTags());
         link.setFavorite(request.isFavorite());
+        link.setFolderId(request.getFolderId());
         link.setCategoryId(request.getCategoryId());
         link.setProjectId(request.getProjectId());
 
@@ -88,6 +97,7 @@ public class DriveLinkService {
         link.setDescription(request.getDescription());
         link.setTags(request.getTags());
         link.setFavorite(request.isFavorite());
+        if (request.getFolderId() != null) link.setFolderId(request.getFolderId());
         link.setCategoryId(request.getCategoryId());
         link.setProjectId(request.getProjectId());
 
@@ -109,57 +119,42 @@ public class DriveLinkService {
     public void deleteDriveLink(UUID userId, UUID id) {
         DriveLinkEntity link = driveLinkRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Drive link not found with id: " + id));
-        if (link.getProjectId() != null) {
-            activityLogService.logSafe(userId, link.getProjectId(), "Drive resource removed", "DRIVE_LINK", link.getId(), link.getName());
-        }
         driveLinkRepository.delete(link);
     }
 
-    public static String detectResourceType(String url) {
-        if (url == null) return "WEB_RESOURCE";
-        String lower = url.toLowerCase();
-
-        if (lower.contains("drive.google.com/drive") || lower.contains("drive.google.com/folderview")) {
-            return "GOOGLE_DRIVE";
-        }
-        if (lower.contains("docs.google.com/document")) {
-            return "GOOGLE_DOCS";
-        }
-        if (lower.contains("docs.google.com/spreadsheets") || lower.contains("sheets.google.com")) {
-            return "GOOGLE_SHEETS";
-        }
-        if (lower.contains("docs.google.com/presentation") || lower.contains("slides.google.com")) {
-            return "GOOGLE_SLIDES";
-        }
-        if (lower.contains("drive.google.com") || lower.contains("google.com/drive")) {
-            return "GOOGLE_DRIVE";
-        }
-        if (lower.contains("chatgpt.com") || lower.contains("chat.openai.com")) {
-            return "CHATGPT";
-        }
-        if (lower.contains("youtube.com") || lower.contains("youtu.be")) {
-            return "YOUTUBE";
-        }
-        if (lower.contains("linkedin.com")) {
-            return "LINKEDIN";
-        }
-        if (lower.contains("facebook.com") || lower.contains("fb.watch") || lower.contains("fb.com")) {
-            return "FACEBOOK";
-        }
-        if (lower.contains("github.com") || lower.contains("gitlab.com")) {
-            return "GITHUB";
-        }
-
-        return "WEB_RESOURCE";
-    }
-
     private String formatUrl(String url) {
-        if (url == null) return "https://drive.google.com";
+        if (url == null) return "";
         String trimmed = url.trim();
         if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
             return "https://" + trimmed;
         }
         return trimmed;
+    }
+
+    public String detectResourceType(String url) {
+        if (url == null) return "WEB_RESOURCE";
+        String lower = url.toLowerCase();
+
+        if (lower.contains("drive.google.com/drive") || lower.contains("drive.google.com/folderview")) {
+            return "GOOGLE_DRIVE";
+        } else if (lower.contains("docs.google.com/document")) {
+            return "GOOGLE_DOCS";
+        } else if (lower.contains("docs.google.com/spreadsheets")) {
+            return "GOOGLE_SHEETS";
+        } else if (lower.contains("docs.google.com/presentation")) {
+            return "GOOGLE_SLIDES";
+        } else if (lower.contains("chatgpt.com") || lower.contains("chat.openai.com")) {
+            return "CHATGPT";
+        } else if (lower.contains("youtube.com") || lower.contains("youtu.be")) {
+            return "YOUTUBE";
+        } else if (lower.contains("linkedin.com")) {
+            return "LINKEDIN";
+        } else if (lower.contains("facebook.com") || lower.contains("fb.com")) {
+            return "FACEBOOK";
+        } else if (lower.contains("github.com")) {
+            return "GITHUB";
+        }
+        return "WEB_RESOURCE";
     }
 
     private DriveLinkDTO mapToDTO(DriveLinkEntity entity) {
@@ -168,6 +163,7 @@ public class DriveLinkService {
         dto.setUserId(entity.getUserId());
         dto.setProjectId(entity.getProjectId());
         dto.setCategoryId(entity.getCategoryId());
+        dto.setFolderId(entity.getFolderId());
         dto.setName(entity.getName());
         dto.setUrl(entity.getUrl());
         dto.setResourceType(entity.getResourceType() != null ? entity.getResourceType() : detectResourceType(entity.getUrl()));
@@ -178,15 +174,15 @@ public class DriveLinkService {
         dto.setUpdatedAt(entity.getUpdatedAt());
 
         if (entity.getCategoryId() != null) {
-            categoryRepository.findById(entity.getCategoryId()).ifPresent(cat -> {
-                dto.setCategoryName(cat.getName());
-            });
+            categoryRepository.findById(entity.getCategoryId()).ifPresent(cat -> dto.setCategoryName(cat.getName()));
         }
 
         if (entity.getProjectId() != null) {
-            projectRepository.findById(entity.getProjectId()).ifPresent(proj -> {
-                dto.setProjectName(proj.getName());
-            });
+            projectRepository.findById(entity.getProjectId()).ifPresent(proj -> dto.setProjectName(proj.getName()));
+        }
+
+        if (entity.getFolderId() != null) {
+            folderRepository.findById(entity.getFolderId()).ifPresent(f -> dto.setFolderName(f.getName()));
         }
 
         return dto;

@@ -15,7 +15,10 @@ public interface NoteRepository extends JpaRepository<NoteEntity, UUID> {
     List<NoteEntity> findByUserIdOrderByCreatedAtDesc(UUID userId);
     Optional<NoteEntity> findByIdAndUserId(UUID id, UUID userId);
 
+    long countByUserIdAndFolderId(UUID userId, UUID folderId);
+
     @Query("SELECT n FROM NoteEntity n WHERE n.userId = :userId AND " +
+           "(:folderId IS NULL OR n.folderId = :folderId) AND " +
            "(:categoryId IS NULL OR n.categoryId = :categoryId) AND " +
            "(:projectId IS NULL OR n.projectId = :projectId) AND " +
            "(:isFavorite IS NULL OR n.isFavorite = :isFavorite) AND " +
@@ -23,6 +26,7 @@ public interface NoteRepository extends JpaRepository<NoteEntity, UUID> {
            "(:search IS NULL OR LOWER(n.title) LIKE :search OR (n.content IS NOT NULL AND LOWER(n.content) LIKE :search) OR (n.tags IS NOT NULL AND LOWER(n.tags) LIKE :search)) " +
            "ORDER BY n.isFavorite DESC, n.updatedAt DESC")
     List<NoteEntity> filterNotes(@Param("userId") UUID userId,
+                                 @Param("folderId") UUID folderId,
                                  @Param("categoryId") UUID categoryId,
                                  @Param("projectId") UUID projectId,
                                  @Param("isFavorite") Boolean isFavorite,

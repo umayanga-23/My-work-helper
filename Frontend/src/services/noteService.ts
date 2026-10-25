@@ -10,7 +10,7 @@ const normalizeNote = (n: any): Note => ({
 });
 
 export const noteService = {
-  async getNotes(params?: { categoryId?: string; projectId?: string; isFavorite?: boolean; isArchived?: boolean; search?: string }): Promise<Note[]> {
+  async getNotes(params?: { folderId?: string; categoryId?: string; projectId?: string; isFavorite?: boolean; isArchived?: boolean; search?: string }): Promise<Note[]> {
     try {
       const response = await api.get('/notes', { params });
       return (response.data.data || []).map(normalizeNote);

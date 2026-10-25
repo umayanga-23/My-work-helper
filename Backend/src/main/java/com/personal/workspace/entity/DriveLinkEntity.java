@@ -21,6 +21,9 @@ public class DriveLinkEntity {
     @Column(name = "category_id")
     private UUID categoryId;
 
+    @Column(name = "folder_id")
+    private UUID folderId;
+
     @Column(nullable = false, length = 255)
     private String name;
 
@@ -69,6 +72,9 @@ public class DriveLinkEntity {
 
     public UUID getCategoryId() { return categoryId; }
     public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
+
+    public UUID getFolderId() { return folderId; }
+    public void setFolderId(UUID folderId) { this.folderId = folderId; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

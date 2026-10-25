@@ -23,6 +23,8 @@ interface DocumentUploadModalProps {
   onUploadSuccess: (documentData: Partial<DocumentItem>) => void;
   categories: Category[];
   initialCategoryId?: string;
+  initialFolderId?: string;
+  initialFolderName?: string;
   defaultProjectId?: string;
   onCategoryCreated?: (newCategory: Category) => void;
 }
@@ -33,6 +35,8 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   onUploadSuccess,
   categories,
   initialCategoryId,
+  initialFolderId,
+  initialFolderName,
   defaultProjectId,
   onCategoryCreated,
 }) => {
@@ -137,9 +141,10 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
         if (onCategoryCreated) onCategoryCreated(createdCat);
       }
 
-      // Direct upload to Supabase Storage and Database
+      // Direct upload to Supabase Storage and Database with resilient vault fallback
       const uploadedDoc = await documentService.uploadDocument(selectedFile, {
         name: displayName.trim() || selectedFile.name,
+        folderId: initialFolderId || undefined,
         categoryId: resolvedCategoryId,
         projectId: projectId || undefined,
         description: description.trim() || undefined,
@@ -170,7 +175,11 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
                 Upload Document to Vault
               </h3>
               <p className="text-xs text-[#3D7858] dark:text-[#72B38F]">
-                Drag & drop project files, assign categories, and view instantly
+                {initialFolderName ? (
+                  <span>Destination Folder: <strong className="text-emerald-600 dark:text-emerald-400 font-semibold">{initialFolderName}</strong></span>
+                ) : (
+                  'Drag & drop project files, assign categories, and view instantly'
+                )}
               </p>
             </div>
           </div>

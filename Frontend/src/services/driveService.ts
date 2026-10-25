@@ -47,7 +47,7 @@ export const getYouTubeVideoId = (url: string): string | null => {
 };
 
 export const driveService = {
-  async getDriveLinks(params?: { categoryId?: string; projectId?: string; isFavorite?: boolean; search?: string }): Promise<DriveLink[]> {
+  async getDriveLinks(params?: { folderId?: string; categoryId?: string; projectId?: string; isFavorite?: boolean; search?: string }): Promise<DriveLink[]> {
     const response = await api.get('/drive-links', { params });
     const list: DriveLink[] = response.data?.data || [];
     return list.map((item) => ({

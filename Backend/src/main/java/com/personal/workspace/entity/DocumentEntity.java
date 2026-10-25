@@ -21,6 +21,9 @@ public class DocumentEntity {
     @Column(name = "category_id")
     private UUID categoryId;
 
+    @Column(name = "folder_id")
+    private UUID folderId;
+
     @Column(nullable = false, length = 255)
     private String name;
 
@@ -29,6 +32,9 @@ public class DocumentEntity {
 
     @Column(name = "file_path", nullable = false, columnDefinition = "TEXT")
     private String filePath;
+
+    @Column(name = "file_content", columnDefinition = "TEXT")
+    private String fileContent;
 
     @Column(name = "file_type", length = 100)
     private String fileType;
@@ -76,6 +82,12 @@ public class DocumentEntity {
 
     public UUID getCategoryId() { return categoryId; }
     public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
+
+    public UUID getFolderId() { return folderId; }
+    public void setFolderId(UUID folderId) { this.folderId = folderId; }
+
+    public String getFileContent() { return fileContent; }
+    public void setFileContent(String fileContent) { this.fileContent = fileContent; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

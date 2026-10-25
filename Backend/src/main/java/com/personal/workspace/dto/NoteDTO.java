@@ -9,6 +9,7 @@ public class NoteDTO {
     private UUID userId;
     private UUID projectId;
     private UUID categoryId;
+    private UUID folderId;
     private String title;
     private String content;
     private List<String> tags;
@@ -18,6 +19,7 @@ public class NoteDTO {
     private ZonedDateTime updatedAt;
     private String categoryName;
     private String projectName;
+    private String folderName;
 
     public NoteDTO() {}
 
@@ -32,6 +34,12 @@ public class NoteDTO {
 
     public UUID getCategoryId() { return categoryId; }
     public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
+
+    public UUID getFolderId() { return folderId; }
+    public void setFolderId(UUID folderId) { this.folderId = folderId; }
+
+    public String getFolderName() { return folderName; }
+    public void setFolderName(String folderName) { this.folderName = folderName; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }

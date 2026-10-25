@@ -6,6 +6,8 @@ import com.personal.workspace.entity.DocumentEntity;
 import com.personal.workspace.exception.ResourceNotFoundException;
 import com.personal.workspace.repository.CategoryRepository;
 import com.personal.workspace.repository.DocumentRepository;
+import com.personal.workspace.repository.FolderRepository;
+import com.personal.workspace.repository.TaskResourceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +21,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -31,6 +34,9 @@ public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final CategoryRepository categoryRepository;
+    private final FolderRepository folderRepository;
+    private final ActivityLogService activityLogService;
+    private final TaskResourceRepository taskResourceRepository;
     private final HttpClient httpClient;
 
     @Value("${supabase.url:https://ngeokbpgmtqbijjvonnw.supabase.co}")
@@ -45,28 +51,31 @@ public class DocumentService {
     @Value("${supabase.anon-key:}")
     private String anonKey;
 
-    private final ActivityLogService activityLogService;
-    private final com.personal.workspace.repository.TaskResourceRepository taskResourceRepository;
-
     public DocumentService(DocumentRepository documentRepository,
                            CategoryRepository categoryRepository,
+                           FolderRepository folderRepository,
                            ActivityLogService activityLogService,
-                           com.personal.workspace.repository.TaskResourceRepository taskResourceRepository) {
+                           TaskResourceRepository taskResourceRepository) {
         this.documentRepository = documentRepository;
         this.categoryRepository = categoryRepository;
+        this.folderRepository = folderRepository;
         this.activityLogService = activityLogService;
         this.taskResourceRepository = taskResourceRepository;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
+                .connectTimeout(Duration.ofSeconds(30))
                 .build();
     }
 
-    public List<DocumentDTO> getDocuments(UUID userId, UUID categoryId, UUID projectId, String search) {
+    public List<DocumentDTO> getDocuments(UUID userId, UUID folderId, UUID categoryId, UUID projectId, String search) {
         String searchPattern = (search != null && !search.trim().isEmpty())
                 ? "%" + search.trim().toLowerCase() + "%"
                 : null;
-        List<DocumentEntity> entities = documentRepository.filterDocuments(userId, categoryId, projectId, searchPattern);
+        List<DocumentEntity> entities = documentRepository.filterDocuments(userId, folderId, categoryId, projectId, searchPattern);
         return entities.stream().map(this::mapToDTO).collect(Collectors.toList());
+    }
+
+    public List<DocumentDTO> getDocuments(UUID userId, UUID categoryId, UUID projectId, String search) {
+        return getDocuments(userId, null, categoryId, projectId, search);
     }
 
     public DocumentDTO getDocumentById(UUID userId, UUID id) {
@@ -76,7 +85,7 @@ public class DocumentService {
     }
 
     @Transactional
-    public DocumentDTO uploadDocumentFile(UUID userId, MultipartFile file, String name, UUID categoryId, UUID projectId, String description, String tags) {
+    public DocumentDTO uploadDocumentFile(UUID userId, MultipartFile file, String name, UUID folderId, UUID categoryId, UUID projectId, String description, String tags) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Cannot upload empty file");
         }
@@ -91,53 +100,77 @@ public class DocumentService {
 
         String storageFileName = String.format("%s_%d%s", UUID.randomUUID().toString().substring(0, 8), System.currentTimeMillis(), extension);
         String storagePath = storageFileName;
+        boolean uploadedToSupabase = false;
 
-        // Upload directly to Supabase Storage via REST
+        byte[] fileBytes;
         try {
-            byte[] fileBytes = file.getBytes();
-            String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
-            
-            String uploadUri = String.format("%s/storage/v1/object/%s/%s", supabaseUrl, storageBucket, storagePath);
-            String authKey = (serviceRoleKey != null && !serviceRoleKey.isBlank()) ? serviceRoleKey : anonKey;
+            fileBytes = file.getBytes();
+        } catch (IOException e) {
+            throw new RuntimeException("Could not read uploaded file content: " + e.getMessage(), e);
+        }
 
-            HttpRequest uploadRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(uploadUri))
-                    .header("Authorization", "Bearer " + authKey)
-                    .header("apikey", authKey)
-                    .header("Content-Type", contentType)
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(fileBytes))
-                    .build();
+        String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+        String authKey = (serviceRoleKey != null && !serviceRoleKey.isBlank()) ? serviceRoleKey : anonKey;
 
-            HttpResponse<String> response = httpClient.send(uploadRequest, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                log.info("Successfully uploaded file to Supabase Storage bucket {}: {}", storageBucket, storagePath);
-            } else {
-                log.error("Supabase Storage upload failed with status {}: {}", response.statusCode(), response.body());
-                throw new RuntimeException("Supabase Storage upload failed: " + response.body());
+        // Try Supabase Storage REST upload with 30s timeout
+        if (authKey != null && !authKey.isBlank()) {
+            try {
+                String uploadUri = String.format("%s/storage/v1/object/%s/%s", supabaseUrl, storageBucket, storagePath);
+                HttpRequest uploadRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(uploadUri))
+                        .header("Authorization", "Bearer " + authKey)
+                        .header("apikey", authKey)
+                        .header("Content-Type", contentType)
+                        .timeout(Duration.ofSeconds(30))
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(fileBytes))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(uploadRequest, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    log.info("Successfully uploaded file to Supabase Storage bucket {}: {}", storageBucket, storagePath);
+                    uploadedToSupabase = true;
+                } else {
+                    log.warn("Supabase Storage returned status {}: {}. Activating secure internal vault storage fallback.", response.statusCode(), response.body());
+                }
+            } catch (Exception e) {
+                log.warn("Supabase Storage upload connection error ({}: {}). Activating secure internal vault storage fallback.", e.getClass().getSimpleName(), e.getMessage());
             }
-        } catch (IOException | InterruptedException e) {
-            log.error("Error uploading document to Supabase Storage", e);
-            throw new RuntimeException("Failed to upload document to Supabase: " + e.getMessage(), e);
+        } else {
+            log.info("Supabase storage key not configured. Using secure internal vault storage fallback.");
         }
 
         DocumentEntity doc = new DocumentEntity();
         doc.setUserId(userId);
         doc.setName(cleanName);
         doc.setOriginalFileName(originalFilename);
-        doc.setFilePath(storagePath);
-        doc.setFileType(file.getContentType() != null ? file.getContentType() : "application/octet-stream");
+        doc.setFileType(contentType);
         doc.setFileSize(file.getSize());
+        doc.setFolderId(folderId);
         doc.setCategoryId(categoryId);
         doc.setProjectId(projectId);
         doc.setDescription(description);
         doc.setTags(tags);
         doc.setIsFavorite(false);
 
+        if (uploadedToSupabase) {
+            doc.setFilePath(storagePath);
+        } else {
+            // Resilient internal storage: store Base64 in PostgreSQL so upload NEVER fails
+            doc.setFilePath("local:" + storagePath);
+            doc.setFileContent(Base64.getEncoder().encodeToString(fileBytes));
+            log.info("Document '{}' stored safely in PostgreSQL vault", cleanName);
+        }
+
         DocumentEntity saved = documentRepository.save(doc);
         if (saved.getProjectId() != null) {
             activityLogService.logSafe(userId, saved.getProjectId(), "Document added", "DOCUMENT", saved.getId(), saved.getName());
         }
         return mapToDTO(saved);
+    }
+
+    @Transactional
+    public DocumentDTO uploadDocumentFile(UUID userId, MultipartFile file, String name, UUID categoryId, UUID projectId, String description, String tags) {
+        return uploadDocumentFile(userId, file, name, null, categoryId, projectId, description, tags);
     }
 
     @Transactional
@@ -149,6 +182,7 @@ public class DocumentService {
         doc.setFilePath(request.getFilePath().trim());
         doc.setFileType(request.getFileType() != null ? request.getFileType() : "application/octet-stream");
         doc.setFileSize(request.getFileSize());
+        doc.setFolderId(request.getFolderId());
         doc.setCategoryId(request.getCategoryId());
         doc.setProjectId(request.getProjectId());
         doc.setDescription(request.getDescription());
@@ -163,13 +197,30 @@ public class DocumentService {
     }
 
     @Transactional
+    public DocumentDTO updateDocument(UUID userId, UUID id, DocumentRequest request) {
+        DocumentEntity doc = documentRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
+
+        doc.setName(request.getName().trim());
+        if (request.getCategoryId() != null) doc.setCategoryId(request.getCategoryId());
+        if (request.getFolderId() != null) doc.setFolderId(request.getFolderId());
+        if (request.getProjectId() != null) doc.setProjectId(request.getProjectId());
+        if (request.getDescription() != null) doc.setDescription(request.getDescription());
+        if (request.getTags() != null) doc.setTags(request.getTags());
+        if (request.getIsFavorite() != null) doc.setIsFavorite(request.getIsFavorite());
+
+        DocumentEntity updated = documentRepository.save(doc);
+        return mapToDTO(updated);
+    }
+
+    @Transactional
     public DocumentDTO toggleFavorite(UUID userId, UUID id) {
         DocumentEntity doc = documentRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
-        boolean current = doc.getIsFavorite() != null ? doc.getIsFavorite() : false;
-        doc.setIsFavorite(!current);
-        DocumentEntity saved = documentRepository.save(doc);
-        return mapToDTO(saved);
+
+        boolean next = doc.getIsFavorite() == null || !doc.getIsFavorite();
+        doc.setIsFavorite(next);
+        return mapToDTO(documentRepository.save(doc));
     }
 
     @Transactional
@@ -177,20 +228,10 @@ public class DocumentService {
         DocumentEntity doc = documentRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
 
-        if (doc.getProjectId() != null) {
-            activityLogService.logSafe(userId, doc.getProjectId(), "Document removed", "DOCUMENT", doc.getId(), doc.getName());
-        }
+        taskResourceRepository.deleteByResourceId(doc.getId());
 
-        // Unlink from task resources
-        try {
-            taskResourceRepository.deleteByResourceId(id);
-        } catch (Exception e) {
-            log.warn("Could not unlink task resources for doc {}: {}", id, e.getMessage());
-        }
-
-        // Clean up from Supabase Storage asynchronously with timeout so database deletion is instant and never hangs
         String filePath = doc.getFilePath();
-        if (filePath != null && !filePath.isBlank()) {
+        if (filePath != null && !filePath.isBlank() && !filePath.startsWith("local:")) {
             java.util.concurrent.CompletableFuture.runAsync(() -> {
                 try {
                     String deleteUri = String.format("%s/storage/v1/object/%s/%s", supabaseUrl, storageBucket, filePath);
@@ -217,8 +258,21 @@ public class DocumentService {
     public String generateDownloadUrl(UUID userId, UUID id) {
         DocumentEntity doc = documentRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
-        
+
+        if (doc.getFilePath() != null && doc.getFilePath().startsWith("local:")) {
+            return "/api/documents/" + id + "/file";
+        }
         return String.format("%s/storage/v1/object/public/%s/%s", supabaseUrl, storageBucket, doc.getFilePath());
+    }
+
+    public byte[] getFileBytes(UUID userId, UUID id) {
+        DocumentEntity doc = documentRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + id));
+
+        if (doc.getFileContent() != null && !doc.getFileContent().isBlank()) {
+            return Base64.getDecoder().decode(doc.getFileContent());
+        }
+        return new byte[0];
     }
 
     private DocumentDTO mapToDTO(DocumentEntity entity) {
@@ -227,6 +281,7 @@ public class DocumentService {
         dto.setUserId(entity.getUserId());
         dto.setProjectId(entity.getProjectId());
         dto.setCategoryId(entity.getCategoryId());
+        dto.setFolderId(entity.getFolderId());
         dto.setName(entity.getName());
         dto.setOriginalFileName(entity.getOriginalFileName());
         dto.setFilePath(entity.getFilePath());
@@ -237,12 +292,19 @@ public class DocumentService {
         dto.setTags(entity.getTags());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
-        dto.setDownloadUrl(String.format("%s/storage/v1/object/public/%s/%s", supabaseUrl, storageBucket, entity.getFilePath()));
+
+        if (entity.getFilePath() != null && entity.getFilePath().startsWith("local:")) {
+            dto.setDownloadUrl("/api/documents/" + entity.getId() + "/file");
+        } else {
+            dto.setDownloadUrl(String.format("%s/storage/v1/object/public/%s/%s", supabaseUrl, storageBucket, entity.getFilePath()));
+        }
 
         if (entity.getCategoryId() != null) {
-            categoryRepository.findById(entity.getCategoryId()).ifPresent(cat -> {
-                dto.setCategoryName(cat.getName());
-            });
+            categoryRepository.findById(entity.getCategoryId()).ifPresent(cat -> dto.setCategoryName(cat.getName()));
+        }
+
+        if (entity.getFolderId() != null) {
+            folderRepository.findById(entity.getFolderId()).ifPresent(f -> dto.setFolderName(f.getName()));
         }
 
         return dto;

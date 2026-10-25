@@ -15,13 +15,17 @@ public interface DriveLinkRepository extends JpaRepository<DriveLinkEntity, UUID
     List<DriveLinkEntity> findByUserIdOrderByCreatedAtDesc(UUID userId);
     Optional<DriveLinkEntity> findByIdAndUserId(UUID id, UUID userId);
 
+    long countByUserIdAndFolderId(UUID userId, UUID folderId);
+
     @Query("SELECT d FROM DriveLinkEntity d WHERE d.userId = :userId AND " +
+           "(:folderId IS NULL OR d.folderId = :folderId) AND " +
            "(:categoryId IS NULL OR d.categoryId = :categoryId) AND " +
            "(:projectId IS NULL OR d.projectId = :projectId) AND " +
            "(:isFavorite IS NULL OR d.isFavorite = :isFavorite) AND " +
            "(:search IS NULL OR LOWER(d.name) LIKE :search OR LOWER(d.url) LIKE :search OR (d.description IS NOT NULL AND LOWER(d.description) LIKE :search)) " +
            "ORDER BY d.isFavorite DESC, d.createdAt DESC")
     List<DriveLinkEntity> filterDriveLinks(@Param("userId") UUID userId,
+                                           @Param("folderId") UUID folderId,
                                            @Param("categoryId") UUID categoryId,
                                            @Param("projectId") UUID projectId,
                                            @Param("isFavorite") Boolean isFavorite,

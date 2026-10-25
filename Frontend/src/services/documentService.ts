@@ -13,23 +13,31 @@ export const documentService = {
   /**
    * Fetch all documents from the backend / Supabase
    */
-  async getDocuments(params?: { categoryId?: string; projectId?: string; search?: string; isFavorite?: boolean }): Promise<DocumentItem[]> {
+  async getDocuments(params?: {
+    folderId?: string;
+    categoryId?: string;
+    projectId?: string;
+    search?: string;
+    isFavorite?: boolean;
+  }): Promise<DocumentItem[]> {
     const response = await api.get('/documents', { params });
     const docs: DocumentItem[] = response.data?.data || [];
     return docs.map((d) => ({
       ...d,
       isFavorite: Boolean(d.isFavorite || (d as any).favorite),
-      favorite: Boolean(d.isFavorite || (d as any).favorite)
+      favorite: Boolean(d.isFavorite || (d as any).favorite),
     }));
   },
 
   /**
-   * Upload binary file directly to backend which securely streams it to Supabase Storage
+   * Upload binary file directly to backend which securely streams to Supabase Storage
+   * with automatic secure database vault fallback if storage is unreachable
    */
   async uploadDocument(
     file: File,
     meta: {
       name?: string;
+      folderId?: string;
       categoryId?: string;
       projectId?: string;
       description?: string;
@@ -39,6 +47,7 @@ export const documentService = {
     const formData = new FormData();
     formData.append('file', file);
     if (meta.name) formData.append('name', meta.name);
+    if (meta.folderId) formData.append('folderId', meta.folderId);
     if (meta.categoryId) formData.append('categoryId', meta.categoryId);
     if (meta.projectId) formData.append('projectId', meta.projectId);
     if (meta.description) formData.append('description', meta.description);
@@ -85,11 +94,18 @@ export const documentService = {
   },
 
   /**
-   * Get authenticated / public download & preview URL from Supabase
+   * Get authenticated / public download & preview URL from Supabase or direct vault stream
    */
   async getDownloadUrl(id: string): Promise<string> {
     const response = await api.get(`/documents/${id}/download-url`);
-    return response.data?.data;
+    const url: string = response.data?.data;
+
+    // If served via internal backend vault, fetch blob with Authorization header and create Object URL
+    if (url && url.startsWith('/api/')) {
+      const blobRes = await api.get(url, { responseType: 'blob' });
+      return URL.createObjectURL(blobRes.data);
+    }
+    return url;
   },
 
   /**

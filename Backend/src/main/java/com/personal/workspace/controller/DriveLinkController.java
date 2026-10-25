@@ -28,12 +28,13 @@ public class DriveLinkController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<DriveLinkDTO>>> getDriveLinks(
             @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) UUID folderId,
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) UUID projectId,
             @RequestParam(required = false) Boolean isFavorite,
             @RequestParam(required = false) String search) {
         UUID userId = principal != null ? principal.getId() : DEMO_USER_ID;
-        List<DriveLinkDTO> links = driveLinkService.getDriveLinks(userId, categoryId, projectId, isFavorite, search);
+        List<DriveLinkDTO> links = driveLinkService.getDriveLinks(userId, folderId, categoryId, projectId, isFavorite, search);
         return ResponseEntity.ok(ApiResponse.success(links));
     }
 

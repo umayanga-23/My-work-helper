@@ -21,6 +21,9 @@ public class NoteEntity {
     @Column(name = "category_id")
     private UUID categoryId;
 
+    @Column(name = "folder_id")
+    private UUID folderId;
+
     @Column(nullable = false, length = 255)
     private String title;
 
@@ -66,6 +69,9 @@ public class NoteEntity {
 
     public UUID getCategoryId() { return categoryId; }
     public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
+
+    public UUID getFolderId() { return folderId; }
+    public void setFolderId(UUID folderId) { this.folderId = folderId; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }

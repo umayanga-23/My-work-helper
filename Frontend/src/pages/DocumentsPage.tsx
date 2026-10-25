@@ -26,15 +26,19 @@ import {
   ChevronRight,
   CheckSquare
 } from 'lucide-react';
-import type { DocumentItem, Category } from '../types';
+import type { DocumentItem, Category, FolderItem } from '../types';
 import { documentService, formatFileSize } from '../services/documentService';
 import { categoryService } from '../services/categoryService';
+import { folderService } from '../services/folderService';
 import { DocumentUploadModal } from '../components/documents/DocumentUploadModal';
 import { DocumentPreviewModal } from '../components/documents/DocumentPreviewModal';
 import { LinkDocumentToTaskModal } from '../components/documents/LinkDocumentToTaskModal';
 import { AiDocumentChatModal } from '../components/documents/AiDocumentChatModal';
 import { CategoryModal } from '../components/categories/CategoryModal';
+import { FolderExplorer } from '../components/folders/FolderExplorer';
 import { useConfirm } from '../contexts/ConfirmDialogContext';
+import { useAuth } from '../contexts/AuthContext';
+import { MOCK_DOCUMENTS, MOCK_FOLDERS, MOCK_CATEGORIES } from '../data/mockDemoData';
 import { clsx } from 'clsx';
 
 type ViewMode = 'SECTIONS' | 'GRID' | 'LIST';
@@ -50,6 +54,11 @@ export const DocumentsPage: React.FC = () => {
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('SECTIONS');
 
+  // Hierarchical Folder Tree state
+  const [currentFolder, setCurrentFolder] = useState<FolderItem | null>(null);
+  const [folders, setFolders] = useState<FolderItem[]>([]);
+  const [breadcrumbs, setBreadcrumbs] = useState<FolderItem[]>([]);
+
   // Modals state
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -64,18 +73,55 @@ export const DocumentsPage: React.FC = () => {
   // Collapsed categories state
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
 
+  const { isDemoMode } = useAuth();
+
   const loadDocuments = async () => {
+    if (isDemoMode) {
+      const filteredFlds = MOCK_FOLDERS.filter((f) =>
+        currentFolder ? f.parentId === currentFolder.id : !f.parentId
+      );
+      const filteredDocs = MOCK_DOCUMENTS.filter((d) =>
+        currentFolder ? d.folderId === currentFolder.id : !d.folderId
+      );
+      setDocuments(filteredDocs);
+      setCategories(MOCK_CATEGORIES);
+      setFolders(filteredFlds);
+
+      if (currentFolder) {
+        const crumbs: FolderItem[] = [];
+        let curr: FolderItem | undefined = currentFolder;
+        while (curr) {
+          crumbs.unshift(curr);
+          curr = MOCK_FOLDERS.find((f) => f.id === curr?.parentId);
+        }
+        setBreadcrumbs(crumbs);
+      } else {
+        setBreadcrumbs([]);
+      }
+      return;
+    }
+
     try {
-      const [fetchedDocs, fetchedCats] = await Promise.all([
+      const [fetchedDocs, fetchedCats, fetchedFolders] = await Promise.all([
         documentService.getDocuments({
           search: search || undefined,
+          folderId: currentFolder?.id || undefined,
           categoryId: selectedCategory || undefined,
           isFavorite: onlyFavorites || undefined,
         }),
         categoryService.getCategories(),
+        folderService.getFolders('DOCUMENT', currentFolder?.id || undefined),
       ]);
       setDocuments(fetchedDocs);
       setCategories(fetchedCats);
+      setFolders(fetchedFolders);
+
+      if (currentFolder?.id) {
+        const crumbs = await folderService.getBreadcrumbs(currentFolder.id);
+        setBreadcrumbs(crumbs);
+      } else {
+        setBreadcrumbs([]);
+      }
     } catch (err) {
       console.error('Failed to load documents:', err);
     }
@@ -86,7 +132,7 @@ export const DocumentsPage: React.FC = () => {
     const handleCategoryUpdate = () => loadDocuments();
     window.addEventListener('workspace-category-updated', handleCategoryUpdate);
     return () => window.removeEventListener('workspace-category-updated', handleCategoryUpdate);
-  }, [search, selectedCategory, onlyFavorites]);
+  }, [search, selectedCategory, onlyFavorites, currentFolder]);
 
   // Top Pinned / Starred Documents Dock
   const speedDockDocs = useMemo(() => {
@@ -503,6 +549,16 @@ export const DocumentsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Hierarchical Folder Explorer */}
+      <FolderExplorer
+        type="DOCUMENT"
+        currentFolder={currentFolder}
+        breadcrumbs={breadcrumbs}
+        folders={folders}
+        onSelectFolder={(f) => setCurrentFolder(f)}
+        onRefresh={loadDocuments}
+      />
+
       {/* Main Content Area */}
       {viewMode === 'SECTIONS' ? (
         categorySections.length === 0 ? (
@@ -736,6 +792,8 @@ export const DocumentsPage: React.FC = () => {
         onUploadSuccess={handleUploadSuccess}
         categories={categories}
         initialCategoryId={presetCategoryId}
+        initialFolderId={currentFolder?.id}
+        initialFolderName={currentFolder?.name}
         onCategoryCreated={handleCategoryCreated}
       />
 
