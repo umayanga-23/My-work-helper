@@ -39,7 +39,7 @@ interface AmbitionSlide {
 
 const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
   {
-    image: '/ambition-1.jpg',
+    image: '/ambition-1.webp',
     category: 'aviation',
     badge: 'Aviation Ambition • Flight Goal',
     title: 'Aim High, Fly Higher',
@@ -47,7 +47,7 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
     sub: 'Boeing 777 Sunset Cruising • Infinite Horizon',
   },
   {
-    image: '/it-1.jpg',
+    image: '/it-1.webp',
     category: 'it',
     badge: 'Software Engineering • Clean Code',
     title: 'Architecting Scalable Systems',
@@ -55,7 +55,7 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
     sub: 'Full-Stack Architecture & Cloud Systems',
   },
   {
-    image: '/ambition-2.jpg',
+    image: '/ambition-2.webp',
     category: 'aviation',
     badge: 'Flight Deck Mastery • Captain Mindset',
     title: 'Master The Cockpit',
@@ -63,7 +63,7 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
     sub: 'Avionics, Systems & Technical Excellence',
   },
   {
-    image: '/it-2.jpg',
+    image: '/it-2.webp',
     category: 'it',
     badge: 'Developer Focus • Deep Work',
     title: 'Engineering The Future',
@@ -71,7 +71,7 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
     sub: 'High-Impact Software Development & Algorithms',
   },
   {
-    image: '/ambition-3.jpg',
+    image: '/ambition-3.webp',
     category: 'aviation',
     badge: 'Peak Ascent • Limitless Altitude',
     title: 'Soar Above The Clouds',
@@ -79,7 +79,7 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
     sub: 'Alpine Range Climb • Elevation & Vision',
   },
   {
-    image: '/it-3.jpg',
+    image: '/it-3.webp',
     category: 'it',
     badge: 'Cloud & Infrastructure • DevOps',
     title: 'Global High-Tech Infrastructure',
@@ -87,7 +87,7 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
     sub: 'Data Center Engineering & DevOps Mastery',
   },
   {
-    image: '/ambition-4.jpg',
+    image: '/ambition-4.webp',
     category: 'aviation',
     badge: 'Runway Acceleration • Momentum',
     title: 'Full Throttle Takeoff',
@@ -95,7 +95,7 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
     sub: 'Twilight Runway Takeoff • Unstoppable Power',
   },
   {
-    image: '/it-4.jpg',
+    image: '/it-4.webp',
     category: 'it',
     badge: 'Tech Innovation • Command Center',
     title: 'Code, Create, Elevate',
@@ -103,7 +103,7 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
     sub: 'Creative Engineering & Systems Thinking',
   },
   {
-    image: '/ambition-5.jpg',
+    image: '/ambition-5.webp',
     category: 'aviation',
     badge: 'Captain of Destiny • Daily Focus',
     title: 'Captain Your Future',

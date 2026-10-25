@@ -128,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-4 border-b border-[#DCE9E1] dark:border-[#20372B] flex items-center justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
             <img
-              src="/aiu-logo.jpg"
+              src="/aiu-logo.webp"
               alt="AIU Workspace Logo"
               className="w-10 h-10 rounded-xl object-contain bg-white p-0.5 border border-[#DCE9E1] dark:border-[#20372B] shadow-xs flex-shrink-0"
             />
