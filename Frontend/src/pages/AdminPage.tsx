@@ -18,14 +18,18 @@ import {
   ArrowUpRight,
   Sparkles,
   Zap,
-  Palette
+  Palette,
+  Users,
+  ShoppingBag,
 } from 'lucide-react';
 import { adminService, SystemMetrics, SupabaseStorageMetrics } from '../services/adminService';
 import { Link } from 'react-router-dom';
 import { ThemeSettings } from '../components/admin/ThemeSettings';
+import { DemoVisitorsTab } from '../components/admin/DemoVisitorsTab';
+import { ClientInquiriesTab } from '../components/admin/ClientInquiriesTab';
 
 export const AdminPage: React.FC = () => {
-  const [adminTab, setAdminTab] = useState<'THEMES' | 'TELEMETRY'>('THEMES');
+  const [adminTab, setAdminTab] = useState<'THEMES' | 'TELEMETRY' | 'VISITORS' | 'INQUIRIES'>('THEMES');
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [storageMetrics, setStorageMetrics] = useState<SupabaseStorageMetrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -163,7 +167,7 @@ export const AdminPage: React.FC = () => {
       </div>
 
       {/* Admin Navigation Tabs */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] shadow-xs w-fit">
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] shadow-xs w-fit flex-wrap">
         <button
           onClick={() => setAdminTab('THEMES')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
@@ -173,7 +177,7 @@ export const AdminPage: React.FC = () => {
           }`}
         >
           <Palette className="w-4 h-4" />
-          <span>Workspace Appearance (Themes)</span>
+          <span>Workspace Appearance</span>
         </button>
 
         <button
@@ -187,13 +191,43 @@ export const AdminPage: React.FC = () => {
           <Activity className="w-4 h-4" />
           <span>Server Telemetry & Storage</span>
         </button>
+
+        <button
+          onClick={() => setAdminTab('VISITORS')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            adminTab === 'VISITORS'
+              ? 'bg-[var(--color-primary)] text-white shadow-xs'
+              : 'text-[#66736B] dark:text-[#9BB5A5] hover:text-[#17211B] dark:hover:text-[#EAF7EF]'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Demo Visitors & Leads</span>
+        </button>
+
+        <button
+          onClick={() => setAdminTab('INQUIRIES')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            adminTab === 'INQUIRIES'
+              ? 'bg-[var(--color-primary)] text-white shadow-xs'
+              : 'text-[#66736B] dark:text-[#9BB5A5] hover:text-[#17211B] dark:hover:text-[#EAF7EF]'
+          }`}
+        >
+          <ShoppingBag className="w-4 h-4" />
+          <span>Client Inquiries & Orders</span>
+        </button>
       </div>
 
-      {adminTab === 'THEMES' ? (
+      {adminTab === 'THEMES' && (
         <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#0A1811] border border-[#DCE9E1] dark:border-[#20372B] shadow-xl">
           <ThemeSettings />
         </div>
-      ) : (
+      )}
+
+      {adminTab === 'VISITORS' && <DemoVisitorsTab />}
+
+      {adminTab === 'INQUIRIES' && <ClientInquiriesTab />}
+
+      {adminTab === 'TELEMETRY' && (
         <div className="space-y-8 animate-in fade-in">
       {/* ========================================================= */}
       {/* 🚀 NEW: SUPABASE SPACE LIVE TRACKER CARD (FULL SPOTLIGHT) */}

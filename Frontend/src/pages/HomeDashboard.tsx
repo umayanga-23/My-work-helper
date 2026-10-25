@@ -27,6 +27,8 @@ import { AiPlanTodayModal } from '../components/tasks/AiPlanTodayModal';
 import { useLiveSync } from '../hooks/useLiveSync';
 import { getLocalDateString } from '../utils/taskProgress';
 import { clsx } from 'clsx';
+import { useAuth } from '../contexts/AuthContext';
+import { MOCK_TASKS, MOCK_CATEGORIES, MOCK_PROJECTS } from '../data/mockDemoData';
 
 interface AmbitionSlide {
   image: string;
@@ -113,6 +115,7 @@ const ALL_AMBITION_SLIDES: AmbitionSlide[] = [
 ];
 
 export const HomeDashboard: React.FC = () => {
+  const { isDemoMode } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -136,6 +139,13 @@ export const HomeDashboard: React.FC = () => {
   }, [isPaused, filteredSlides.length]);
 
   const loadData = async () => {
+    if (isDemoMode) {
+      setTasks(MOCK_TASKS);
+      setCategories(MOCK_CATEGORIES);
+      setProjects(MOCK_PROJECTS);
+      return;
+    }
+
     try {
       const [fetchedTasks, fetchedCats, fetchedProjects] = await Promise.all([
         taskService.getTasks(),
@@ -184,6 +194,8 @@ export const HomeDashboard: React.FC = () => {
     if (detailTask && detailTask.id === task.id) {
       setDetailTask(updated);
     }
+    if (isDemoMode) return;
+
     try {
       const serverUpdated = await taskService.updateTaskStatus(task.id, nextStatus);
       setTasks((prev) => prev.map((t) => (t.id === task.id ? serverUpdated : t)));
@@ -222,6 +234,8 @@ export const HomeDashboard: React.FC = () => {
         setDetailTask(updatedSub);
       }
     }
+
+    if (isDemoMode) return;
 
     try {
       await taskService.updateTaskStatus(subtask.id, nextStatus);

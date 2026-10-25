@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -60,10 +61,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setMobileOpen,
 }) => {
   const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ROLE_ADMIN';
 
-  const renderNavLinks = (items: NavItem[]) => (
-    <ul className="space-y-1">
-      {items.map((item) => {
+  const renderNavLinks = (items: NavItem[]) => {
+    const visibleItems = items.filter((item) => !item.adminOnly || isAdmin);
+    return (
+      <ul className="space-y-1">
+        {visibleItems.map((item) => {
         const Icon = item.icon;
         const isActive = location.pathname === item.path;
 
@@ -105,6 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       })}
     </ul>
   );
+};
 
   return (
     <>

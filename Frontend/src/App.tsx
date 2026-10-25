@@ -32,6 +32,40 @@ const PageLoadingFallback = () => (
   </div>
 );
 
+import { useAuth } from './contexts/AuthContext';
+import { AuthGatewayModal } from './components/auth/AuthGatewayModal';
+
+const AppRoutes: React.FC = () => {
+  const { isAuthenticated, isDemoMode } = useAuth();
+
+  if (!isAuthenticated && !isDemoMode) {
+    return <AuthGatewayModal />;
+  }
+
+  return (
+    <Suspense fallback={<PageLoadingFallback />}>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<HomeDashboard />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/goals" element={<GoalsPage />} />
+          <Route path="/websites" element={<WebsitesPage />} />
+          <Route path="/notes" element={<NotesPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/drive" element={<DriveLinksPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/ideas" element={<IdeasPage />} />
+          <Route path="/vault" element={<VaultPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/admin/dashboard" element={<AdminPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </Suspense>
+  );
+};
+
 export function App() {
   return (
     <ErrorBoundary fallbackTitle="AIU Workspace View Recovered">
@@ -39,26 +73,7 @@ export function App() {
         <AuthProvider>
           <ConfirmDialogProvider>
             <BrowserRouter>
-              <Suspense fallback={<PageLoadingFallback />}>
-                <Routes>
-                  <Route element={<AppLayout />}>
-                    <Route path="/" element={<HomeDashboard />} />
-                    <Route path="/tasks" element={<TasksPage />} />
-                    <Route path="/goals" element={<GoalsPage />} />
-                    <Route path="/websites" element={<WebsitesPage />} />
-                    <Route path="/notes" element={<NotesPage />} />
-                    <Route path="/documents" element={<DocumentsPage />} />
-                    <Route path="/drive" element={<DriveLinksPage />} />
-                    <Route path="/projects" element={<ProjectsPage />} />
-                    <Route path="/ideas" element={<IdeasPage />} />
-                    <Route path="/vault" element={<VaultPage />} />
-                    <Route path="/analytics" element={<AnalyticsPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/admin/dashboard" element={<AdminPage />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Route>
-                </Routes>
-              </Suspense>
+              <AppRoutes />
             </BrowserRouter>
           </ConfirmDialogProvider>
         </AuthProvider>

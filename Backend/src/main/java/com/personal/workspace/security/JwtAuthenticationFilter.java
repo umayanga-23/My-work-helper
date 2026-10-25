@@ -1,9 +1,12 @@
 package com.personal.workspace.security;
 
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -17,7 +20,14 @@ import java.util.UUID;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private static final UUID DEMO_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+    private final JwtService jwtService;
+
+    public JwtAuthenticationFilter(JwtService jwtService) {
+        this.jwtService = jwtService;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -28,28 +38,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (StringUtils.hasText(jwt)) {
                 UserPrincipal userPrincipal = null;
+
                 if ("demo-jwt-token-dev-1001".equals(jwt)) {
                     userPrincipal = new UserPrincipal(DEMO_USER_ID, "developer@workspace.local", "ROLE_ADMIN");
-                } else {
-                    try {
-                        String[] parts = jwt.split("\\.");
-                        if (parts.length >= 2) {
-                            String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]), java.nio.charset.StandardCharsets.UTF_8);
-                            com.fasterxml.jackson.databind.JsonNode jsonNode = new com.fasterxml.jackson.databind.ObjectMapper().readTree(payloadJson);
-                            String sub = jsonNode.has("sub") ? jsonNode.get("sub").asText() : null;
-                            if (sub != null) {
-                                UUID userId = UUID.fromString(sub);
-                                String email = jsonNode.has("email") ? jsonNode.get("email").asText() : "user@workspace.local";
-                                String role = jsonNode.has("role") ? jsonNode.get("role").asText() : "ROLE_USER";
-                                userPrincipal = new UserPrincipal(userId, email, role);
-                            }
-                        }
-                    } catch (Exception parseEx) {
-                        logger.warn("Could not parse JWT token claims: " + parseEx.getMessage());
-                    }
-                    if (userPrincipal == null) {
-                        userPrincipal = new UserPrincipal(DEMO_USER_ID, "user@workspace.local", "ROLE_USER");
-                    }
+                } else if (jwtService.validateToken(jwt)) {
+                    Claims claims = jwtService.getClaimsFromToken(jwt);
+                    UUID userId = UUID.fromString(claims.getSubject());
+                    String email = claims.get("email", String.class);
+                    String role = claims.get("role", String.class);
+                    userPrincipal = new UserPrincipal(userId, email, role != null ? role : "ROLE_USER");
                 }
 
                 if (userPrincipal != null) {
@@ -61,7 +58,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception ex) {
-            logger.error("Could not set user authentication in security context", ex);
+            log.error("Could not set user authentication in security context: {}", ex.getMessage());
         }
 
         filterChain.doFilter(request, response);

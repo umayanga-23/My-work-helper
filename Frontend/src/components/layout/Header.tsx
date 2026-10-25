@@ -11,9 +11,13 @@ import {
   FileText,
   FolderArchive,
   HardDrive,
-  ChevronDown
+  ChevronDown,
+  User,
+  LogOut,
+  Shield,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface HeaderProps {
   onOpenSearch?: () => void;
@@ -26,7 +30,9 @@ export const Header: React.FC<HeaderProps> = ({
   setMobileOpen,
 }) => {
   const { setTheme, isDark } = useTheme();
+  const { user, isAuthenticated, isDemoMode, demoVisitorName, logout, exitDemoMode } = useAuth();
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
   useEffect(() => {
@@ -180,6 +186,78 @@ export const Header: React.FC<HeaderProps> = ({
             <Moon className="w-5 h-5 text-[#237A57] transition-transform duration-200 hover:-rotate-12" />
           )}
         </button>
+
+        {/* User Account / Profile Menu */}
+        {isAuthenticated && user && (
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#F8FAF9] dark:bg-[#13261C] hover:bg-[#E8F7EF] dark:hover:bg-[#20372B] border border-[#DCE9E1] dark:border-[#20372B] transition-all cursor-pointer"
+              title="User Account"
+            >
+              <div className="w-7 h-7 rounded-lg bg-[var(--color-primary)] text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                {user.fullName ? user.fullName[0].toUpperCase() : user.username[0].toUpperCase()}
+              </div>
+              <div className="hidden md:flex flex-col text-left">
+                <span className="text-xs font-bold text-[#17211B] dark:text-[#EAF7EF] leading-tight">
+                  {user.fullName || user.username}
+                </span>
+                <span className="text-[10px] text-[#237A57] dark:text-[#6DD6A0] font-semibold leading-none">
+                  {user.role === 'ROLE_ADMIN' ? 'Super Admin' : 'Private User'}
+                </span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-[#8A9890]" />
+            </button>
+
+            {userMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setUserMenuOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#0E1C15] rounded-2xl shadow-xl border border-[#DCE9E1] dark:border-[#20372B] p-2 z-50 animate-fadeIn">
+                  <div className="p-2.5 border-b border-[#DCE9E1]/80 dark:border-[#20372B]/80 mb-1">
+                    <p className="text-xs font-bold text-[#17211B] dark:text-[#EAF7EF]">
+                      {user.fullName || user.username}
+                    </p>
+                    <p className="text-[11px] text-[#66736B] dark:text-[#9BB5A5] truncate">
+                      {user.email}
+                    </p>
+                    <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E8F7EF] dark:bg-[#13261C] text-[10px] font-bold text-[#237A57] dark:text-[#6DD6A0]">
+                      <Shield className="w-3 h-3" />
+                      <span>{user.role === 'ROLE_ADMIN' ? 'Super Admin' : 'Private Workspace'}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Demo Mode Badge in Header */}
+        {isDemoMode && (
+          <button
+            onClick={exitDemoMode}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 transition-colors cursor-pointer"
+            title="Click to Exit Demo"
+          >
+            <User className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Guest:</span>
+            <span className="truncate max-w-[100px]">{demoVisitorName || 'Demo'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-100">Exit</span>
+          </button>
+        )}
       </div>
     </header>
   );

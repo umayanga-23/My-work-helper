@@ -24,6 +24,8 @@ import { categoryService } from '../../services/categoryService';
 // Types
 import type { Category, Task, Website, Note, DocumentItem, DriveLink } from '../../types';
 
+import { DemoBanner } from '../demo/DemoBanner';
+
 interface AppLayoutProps {
   onOpenQuickAction?: (type: 'task' | 'website' | 'note' | 'document' | 'drive') => void;
 }
@@ -125,6 +127,7 @@ export const AppLayout: React.FC<AppLayoutProps> = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
+        <DemoBanner />
         {/* Sticky Header Topbar */}
         <Header
           onOpenSearch={() => setSearchOpen(true)}
