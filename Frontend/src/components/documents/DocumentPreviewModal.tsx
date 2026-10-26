@@ -229,27 +229,13 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           </div>
         </div>
 
-        {/* Viewer Engine Selector Toolbar (For PDFs, Word, Excel, PPT) */}
-        {(isPdf || isOfficeDoc) && (
+        {/* Viewer Engine Selector Toolbar (Only for Office Documents with Public URLs) */}
+        {isOfficeDoc && !isBlobUrl && (
           <div className="px-4 sm:px-6 py-2 bg-white dark:bg-[#08170F] border-b border-[#D5F2E2] dark:border-[#193A29] flex items-center justify-between gap-3 flex-wrap text-xs shrink-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[11px] font-bold text-[#3D7858] dark:text-[#72B38F] uppercase tracking-wider mr-1">
-                Preview Engine:
+                Office Viewer:
               </span>
-
-              {/* Native Frame */}
-              <button
-                onClick={() => setViewerEngine('NATIVE')}
-                className={clsx(
-                  'px-2.5 py-1 rounded-lg font-semibold transition-all flex items-center gap-1.5 border text-xs',
-                  viewerEngine === 'NATIVE'
-                    ? 'bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold'
-                    : 'border-transparent text-[#3D7858] dark:text-[#72B38F] hover:bg-[#F0FAF4] dark:hover:bg-[#132D20]'
-                )}
-              >
-                <Monitor className="w-3.5 h-3.5" />
-                <span>Browser Viewer (Native)</span>
-              </button>
 
               {/* Microsoft Office Online Viewer */}
               <button
@@ -288,29 +274,10 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               <span>Load Local File</span>
               <input
                 type="file"
-                accept={isPdf ? '.pdf' : '*'}
                 onChange={handleLocalFileSelect}
                 className="hidden"
               />
             </label>
-          </div>
-        )}
-
-        {/* Informational banner when Microsoft/Google viewer is selected with a local private blob */}
-        {viewerEngine !== 'NATIVE' && isBlobUrl && (
-          <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between text-xs text-amber-800 dark:text-amber-200 shrink-0">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-              <span>
-                Microsoft and Google cloud viewers cannot access files stored in your private database vault. Use <strong>Browser Viewer</strong> to read natively.
-              </span>
-            </div>
-            <button
-              onClick={() => setViewerEngine('NATIVE')}
-              className="px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white font-bold text-xs shrink-0"
-            >
-              Switch to Browser Viewer
-            </button>
           </div>
         )}
 
