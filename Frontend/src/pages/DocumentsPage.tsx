@@ -365,11 +365,11 @@ export const DocumentsPage: React.FC = () => {
   const totalItemsCount = sortedFolders.length + sortedDocuments.length;
 
   return (
-    <div className="space-y-6 animate-in fade-in pb-12 font-sans">
+    <div className="flex flex-col h-[calc(100vh-6.25rem)] sm:h-[calc(100vh-7rem)] space-y-3 animate-in fade-in font-sans w-full">
       {/* ======================================================== */}
       {/* 1. TOP HEADER BAR (AIU Workspace Design System)          */}
       {/* ======================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-[#0F2D1E] dark:text-[#E8FAF0] flex items-center gap-2.5">
             <div className="p-2 rounded-2xl bg-amber-500/15 text-amber-500 dark:bg-amber-400/15 dark:text-amber-400 shadow-sm">
@@ -419,7 +419,7 @@ export const DocumentsPage: React.FC = () => {
       {/* 2. CATEGORY FILTER PILLS BAR                             */}
       {/* ======================================================== */}
       {categories.length > 0 && (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 shrink-0">
           <button
             onClick={() => setSelectedCategoryId('')}
             className={clsx(
@@ -481,9 +481,9 @@ export const DocumentsPage: React.FC = () => {
       {/* ======================================================== */}
       {/* 3. THE FILE MANAGER CARD CONTAINER                       */}
       {/* ======================================================== */}
-      <div className="rounded-3xl bg-white dark:bg-[#0D2218] border border-[#BBEAD0] dark:border-[#1E4933] shadow-md overflow-hidden flex flex-col min-h-[550px]">
+      <div className="flex-1 min-h-0 rounded-3xl bg-white dark:bg-[#0D2218] border border-[#BBEAD0] dark:border-[#1E4933] shadow-md overflow-hidden flex flex-col">
         {/* Command & Breadcrumbs Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 sm:px-4 bg-emerald-50/50 dark:bg-[#0F281B]/40 border-b border-[#BBEAD0] dark:border-[#1E4933] text-xs">
+        <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 sm:px-4 bg-emerald-50/50 dark:bg-[#0F281B]/40 border-b border-[#BBEAD0] dark:border-[#1E4933] text-xs">
           {/* Left: Navigation Buttons & Breadcrumbs */}
           <div className="flex items-center gap-2 flex-1 overflow-hidden">
             {/* Nav Arrows */}
@@ -610,7 +610,7 @@ export const DocumentsPage: React.FC = () => {
         {/* ======================================================== */}
         {/* Explorer Content Body                                    */}
         {/* ======================================================== */}
-        <div className="flex-1 overflow-y-auto px-4 py-3">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
           {totalItemsCount === 0 && !loading ? (
             /* Modern Themed Empty State */
             <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -1010,7 +1010,7 @@ export const DocumentsPage: React.FC = () => {
         {/* ======================================================== */}
         {/* Bottom Status Bar                                        */}
         {/* ======================================================== */}
-        <div className="flex items-center justify-between px-4 py-2 bg-emerald-50/50 dark:bg-[#0F281B]/40 border-t border-[#BBEAD0] dark:border-[#1E4933] text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+        <div className="shrink-0 flex items-center justify-between px-4 py-2 bg-emerald-50/50 dark:bg-[#0F281B]/40 border-t border-[#BBEAD0] dark:border-[#1E4933] text-[11px] text-gray-500 dark:text-gray-400 font-medium">
           <div>
             <span>
               {totalItemsCount} item{totalItemsCount !== 1 ? 's' : ''} ({sortedFolders.length} folder{sortedFolders.length !== 1 ? 's' : ''}, {sortedDocuments.length} file{sortedDocuments.length !== 1 ? 's' : ''})
