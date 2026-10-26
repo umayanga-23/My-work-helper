@@ -463,28 +463,18 @@ export const DocumentsPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Address Path Bar (Exact Windows 11 Breadcrumbs) */}
+        {/* Address Path Bar (Windows Breadcrumbs) */}
         <div className="flex-1 flex items-center gap-1 px-3 py-1.5 bg-[#252525] border border-[#383838] hover:border-[#4D4D4D] rounded-md overflow-x-auto no-scrollbar font-sans text-xs">
-          {/* Drive Root Icon */}
-          <button
-            onClick={() => navigateToFolder(null)}
-            className="flex items-center gap-1.5 text-gray-300 hover:text-white font-medium shrink-0 hover:bg-[#333] px-1.5 py-0.5 rounded"
-          >
-            <HardDrive className="w-3.5 h-3.5 text-sky-400" />
-            <span>New Volume (D:)</span>
-          </button>
-
-          <ChevronRight className="w-3 h-3 text-gray-500 shrink-0" />
-
-          {/* Root Workspace Folder */}
+          {/* Root Documents Vault */}
           <button
             onClick={() => navigateToFolder(null)}
             className={clsx(
-              'px-1.5 py-0.5 rounded shrink-0 transition-colors',
+              'flex items-center gap-1.5 px-2 py-0.5 rounded shrink-0 transition-colors',
               !currentFolder ? 'bg-[#333] text-white font-semibold' : 'text-gray-300 hover:text-white hover:bg-[#333]'
             )}
           >
-            00-(UNIVERISTY OF MORATUWA)
+            <Folder className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20" />
+            <span>Documents Vault</span>
           </button>
 
           {/* Sub-folder Breadcrumbs */}
