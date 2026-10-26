@@ -102,8 +102,12 @@ export const documentService = {
 
     // If served via internal backend vault, fetch blob with Authorization header and create Object URL
     if (url && url.startsWith('/api/')) {
-      const blobRes = await api.get(url, { responseType: 'blob' });
-      return URL.createObjectURL(blobRes.data);
+      const endpoint = url.replace(/^\/api/, '');
+      const blobRes = await api.get(endpoint, { responseType: 'blob' });
+      const rawHeader = blobRes.headers['content-type'];
+      const contentType = typeof rawHeader === 'string' ? rawHeader : 'application/pdf';
+      const typedBlob = new Blob([blobRes.data], { type: contentType });
+      return URL.createObjectURL(typedBlob);
     }
     return url;
   },
