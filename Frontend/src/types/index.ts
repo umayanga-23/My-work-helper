@@ -212,6 +212,7 @@ export interface DocumentItem {
   createdAt: string;
   updatedAt: string;
   categoryName?: string;
+  categoryColor?: string;
   projectName?: string;
   downloadUrl?: string;
 }
@@ -224,6 +225,9 @@ export interface FolderItem {
   type: 'DOCUMENT' | 'NOTE' | 'DRIVE' | 'GENERAL';
   color?: string;
   icon?: string;
+  categoryId?: string;
+  categoryName?: string;
+  categoryColor?: string;
   position?: number;
   itemCount?: number;
   subFolderCount?: number;

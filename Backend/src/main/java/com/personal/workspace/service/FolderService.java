@@ -4,6 +4,7 @@ import com.personal.workspace.dto.FolderDTO;
 import com.personal.workspace.dto.FolderRequest;
 import com.personal.workspace.entity.FolderEntity;
 import com.personal.workspace.exception.ResourceNotFoundException;
+import com.personal.workspace.repository.CategoryRepository;
 import com.personal.workspace.repository.DocumentRepository;
 import com.personal.workspace.repository.DriveLinkRepository;
 import com.personal.workspace.repository.FolderRepository;
@@ -26,15 +27,18 @@ public class FolderService {
     private final DocumentRepository documentRepository;
     private final NoteRepository noteRepository;
     private final DriveLinkRepository driveLinkRepository;
+    private final CategoryRepository categoryRepository;
 
     public FolderService(FolderRepository folderRepository,
                          DocumentRepository documentRepository,
                          NoteRepository noteRepository,
-                         DriveLinkRepository driveLinkRepository) {
+                         DriveLinkRepository driveLinkRepository,
+                         CategoryRepository categoryRepository) {
         this.folderRepository = folderRepository;
         this.documentRepository = documentRepository;
         this.noteRepository = noteRepository;
         this.driveLinkRepository = driveLinkRepository;
+        this.categoryRepository = categoryRepository;
     }
 
     public List<FolderDTO> getFolders(UUID userId, String type, UUID parentId) {
@@ -111,6 +115,10 @@ public class FolderService {
                 request.getIcon()
         );
 
+        if (request.getCategoryId() != null) {
+            folder.setCategoryId(request.getCategoryId());
+        }
+
         FolderEntity saved = folderRepository.save(folder);
         log.info("Created folder '{}' (id: {}) for user {}", saved.getName(), saved.getId(), userId);
         return mapToDTO(saved);
@@ -129,6 +137,9 @@ public class FolderService {
         }
         if (request.getIcon() != null && !request.getIcon().isBlank()) {
             folder.setIcon(request.getIcon());
+        }
+        if (request.getCategoryId() != null) {
+            folder.setCategoryId(request.getCategoryId());
         }
         if (request.getParentId() != null) {
             if (request.getParentId().equals(id)) {
@@ -171,6 +182,13 @@ public class FolderService {
         dto.setColor(entity.getColor());
         dto.setIcon(entity.getIcon());
         dto.setPosition(entity.getPosition());
+        dto.setCategoryId(entity.getCategoryId());
+        if (entity.getCategoryId() != null) {
+            categoryRepository.findById(entity.getCategoryId()).ifPresent(cat -> {
+                dto.setCategoryName(cat.getName());
+                dto.setCategoryColor(cat.getColor());
+            });
+        }
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
 

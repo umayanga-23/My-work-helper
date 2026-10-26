@@ -13,7 +13,10 @@ public class FolderDTO {
     private String name;
     private String type;
     private String color;
-    private String icon;
+    private String icon = "Folder";
+    private UUID categoryId;
+    private String categoryName;
+    private String categoryColor;
     private Integer position;
     private long itemCount;
     private long subFolderCount;
@@ -43,6 +46,15 @@ public class FolderDTO {
 
     public String getIcon() { return icon; }
     public void setIcon(String icon) { this.icon = icon; }
+
+    public UUID getCategoryId() { return categoryId; }
+    public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
+
+    public String getCategoryName() { return categoryName; }
+    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
+
+    public String getCategoryColor() { return categoryColor; }
+    public void setCategoryColor(String categoryColor) { this.categoryColor = categoryColor; }
 
     public Integer getPosition() { return position; }
     public void setPosition(Integer position) { this.position = position; }

@@ -45,6 +45,7 @@ export const folderService = {
     type?: 'DOCUMENT' | 'NOTE' | 'DRIVE' | 'GENERAL';
     color?: string;
     icon?: string;
+    categoryId?: string;
   }): Promise<FolderItem> {
     const response = await api.post('/folders', data);
     return response.data?.data;
@@ -58,6 +59,7 @@ export const folderService = {
     parentId?: string;
     color?: string;
     icon?: string;
+    categoryId?: string;
   }): Promise<FolderItem> {
     const response = await api.put(`/folders/${id}`, data);
     return response.data?.data;

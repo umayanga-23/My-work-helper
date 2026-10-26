@@ -16,6 +16,8 @@ public class FolderRequest {
 
     private String icon = "Folder";
 
+    private UUID categoryId;
+
     public FolderRequest() {}
 
     public String getName() { return name; }
@@ -32,4 +34,7 @@ public class FolderRequest {
 
     public String getIcon() { return icon; }
     public void setIcon(String icon) { this.icon = icon; }
+
+    public UUID getCategoryId() { return categoryId; }
+    public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
 }

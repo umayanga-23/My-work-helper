@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Folder, FolderPlus, X, Palette, Sparkles, FolderGit2, FolderArchive, FolderCode, GraduationCap, Briefcase, FileText } from 'lucide-react';
+import { Folder, FolderPlus, X, Palette, Sparkles, FolderGit2, FolderArchive, FolderCode, GraduationCap, Briefcase, FileText, Tag } from 'lucide-react';
 import { folderService } from '../../services/folderService';
-import type { FolderItem } from '../../types';
+import type { FolderItem, Category } from '../../types';
 
 interface CreateFolderModalProps {
   isOpen: boolean;
@@ -9,6 +9,8 @@ interface CreateFolderModalProps {
   parentId?: string;
   parentName?: string;
   type?: 'DOCUMENT' | 'NOTE' | 'DRIVE' | 'GENERAL';
+  categories?: Category[];
+  initialCategoryId?: string;
   onFolderCreated: (folder: FolderItem) => void;
 }
 
@@ -39,11 +41,14 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
   parentId,
   parentName,
   type = 'DOCUMENT',
+  categories = [],
+  initialCategoryId,
   onFolderCreated,
 }) => {
   const [name, setName] = useState('');
   const [color, setColor] = useState('#10B981');
   const [icon, setIcon] = useState('Folder');
+  const [categoryId, setCategoryId] = useState(initialCategoryId || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -66,9 +71,11 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
         type,
         color,
         icon,
+        categoryId: categoryId || undefined,
       });
       onFolderCreated(created);
       setName('');
+      setCategoryId('');
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to create folder');
@@ -130,6 +137,28 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
               className="w-full px-4 py-3 bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-emerald-500/20 rounded-2xl text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
             />
           </div>
+
+          {/* Category Selector */}
+          {categories.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5 flex items-center gap-1.5 uppercase tracking-wider">
+                <Tag className="w-3.5 h-3.5 text-emerald-500" />
+                Category (Optional)
+              </label>
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-emerald-500/20 rounded-2xl text-gray-900 dark:text-gray-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer"
+              >
+                <option value="">No Category (General / Unassigned)</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Color Picker */}
           <div>

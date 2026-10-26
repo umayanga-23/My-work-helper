@@ -33,6 +33,9 @@ public class FolderEntity {
     @Column(length = 50)
     private String icon = "Folder";
 
+    @Column(name = "category_id")
+    private UUID categoryId;
+
     @Column(name = "position_idx")
     private Integer position = 0;
 
@@ -87,6 +90,9 @@ public class FolderEntity {
 
     public String getIcon() { return icon; }
     public void setIcon(String icon) { this.icon = icon; }
+
+    public UUID getCategoryId() { return categoryId; }
+    public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
 
     public Integer getPosition() { return position; }
     public void setPosition(Integer position) { this.position = position; }
