@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  FolderArchive,
+  Folder,
+  FolderPlus,
   Upload,
   Search,
   Download,
@@ -16,14 +17,20 @@ import {
   Copy,
   Check,
   Link2,
-  Plus,
-  FolderPlus,
+  ChevronRight,
+  ArrowLeft,
+  ArrowUp,
+  RefreshCw,
+  HardDrive,
+  FolderOpen,
   LayoutGrid,
   List as ListIcon,
-  FolderKanban,
+  ArrowUpDown,
+  MoreVertical,
+  Bot,
   Sparkles,
+  ExternalLink,
   ChevronDown,
-  ChevronRight,
   CheckSquare
 } from 'lucide-react';
 import type { DocumentItem, Category, FolderItem } from '../types';
@@ -34,48 +41,108 @@ import { DocumentUploadModal } from '../components/documents/DocumentUploadModal
 import { DocumentPreviewModal } from '../components/documents/DocumentPreviewModal';
 import { LinkDocumentToTaskModal } from '../components/documents/LinkDocumentToTaskModal';
 import { AiDocumentChatModal } from '../components/documents/AiDocumentChatModal';
-import { CategoryModal } from '../components/categories/CategoryModal';
-import { FolderExplorer } from '../components/folders/FolderExplorer';
+import { CreateFolderModal } from '../components/folders/CreateFolderModal';
 import { useConfirm } from '../contexts/ConfirmDialogContext';
 import { useAuth } from '../contexts/AuthContext';
 import { MOCK_DOCUMENTS, MOCK_FOLDERS, MOCK_CATEGORIES } from '../data/mockDemoData';
 import { clsx } from 'clsx';
 
-type ViewMode = 'SECTIONS' | 'GRID' | 'LIST';
-type FileTypeFilter = 'ALL' | 'PDF' | 'IMAGE' | 'CODE' | 'ARCHIVE' | 'OFFICE';
+type ExplorerViewMode = 'DETAILS' | 'GRID';
+type SortField = 'NAME' | 'DATE' | 'TYPE' | 'SIZE';
+type SortOrder = 'ASC' | 'DESC';
+
+// Format date into Windows File Explorer format: M/d/yyyy h:mm a
+function formatWindowsDate(dateStr?: string): string {
+  if (!dateStr) return '--';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const year = d.getFullYear();
+  let hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
+}
+
+// Convert mime types & extensions to human-friendly Windows Type labels
+function getWindowsFileType(fileType?: string, fileName?: string): string {
+  const ext = (fileName || '').split('.').pop()?.toLowerCase() || '';
+  if (ext === 'pdf' || (fileType && fileType.includes('pdf'))) return 'Chrome PDF Document';
+  if (['docx', 'doc'].includes(ext) || (fileType && fileType.includes('word'))) return 'Microsoft Word Document';
+  if (['xlsx', 'xls', 'csv'].includes(ext) || (fileType && fileType.includes('sheet'))) return 'Microsoft Excel Worksheet';
+  if (['pptx', 'ppt'].includes(ext) || (fileType && fileType.includes('presentation'))) return 'Microsoft PowerPoint Presentation';
+  if (ext === 'png') return 'PNG File';
+  if (['jpg', 'jpeg'].includes(ext)) return 'JPG File';
+  if (ext === 'webp') return 'Microsoft Edge HTML Document';
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'Compressed Archive';
+  if (['ts', 'tsx', 'js', 'jsx'].includes(ext)) return 'TypeScript / JS Source';
+  if (['java', 'py', 'cpp', 'c', 'cs', 'go'].includes(ext)) return 'Source Code File';
+  if (ext === 'txt') return 'Text Document';
+  return 'File';
+}
+
+// Return authentic Windows style icon for file
+function getWindowsFileIcon(fileType?: string, fileName?: string, className = 'w-4 h-4') {
+  const ext = (fileName || '').split('.').pop()?.toLowerCase() || '';
+  if (ext === 'pdf' || (fileType && fileType.includes('pdf'))) {
+    return <FileText className={clsx(className, 'text-rose-500')} />;
+  }
+  if (['docx', 'doc'].includes(ext)) {
+    return <File className={clsx(className, 'text-blue-500')} />;
+  }
+  if (['xlsx', 'xls', 'csv'].includes(ext)) {
+    return <FileSpreadsheet className={clsx(className, 'text-emerald-500')} />;
+  }
+  if (['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'].includes(ext)) {
+    return <FileImage className={clsx(className, 'text-sky-500')} />;
+  }
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+    return <FileArchive className={clsx(className, 'text-amber-500')} />;
+  }
+  if (['ts', 'tsx', 'js', 'jsx', 'java', 'py', 'sql', 'json'].includes(ext)) {
+    return <FileCode className={clsx(className, 'text-teal-500')} />;
+  }
+  return <File className={clsx(className, 'text-gray-400')} />;
+}
 
 export const DocumentsPage: React.FC = () => {
   const confirm = useConfirm();
+  const { isDemoMode } = useAuth();
+
+  // Primary Data State
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter>('ALL');
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('SECTIONS');
-
-  // Hierarchical Folder Tree state
-  const [currentFolder, setCurrentFolder] = useState<FolderItem | null>(null);
   const [folders, setFolders] = useState<FolderItem[]>([]);
-  const [breadcrumbs, setBreadcrumbs] = useState<FolderItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Modals state
+  // Folder Navigation State
+  const [currentFolder, setCurrentFolder] = useState<FolderItem | null>(null);
+  const [breadcrumbs, setBreadcrumbs] = useState<FolderItem[]>([]);
+  const [folderHistory, setFolderHistory] = useState<(FolderItem | null)[]>([null]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  // Explorer Controls
+  const [viewMode, setViewMode] = useState<ExplorerViewMode>('DETAILS');
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState<SortField>('NAME');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('ASC');
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
+  // Modals State
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [presetCategoryId, setPresetCategoryId] = useState<string | undefined>(undefined);
+  const [createFolderModalOpen, setCreateFolderModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
   const [linkModalDoc, setLinkModalDoc] = useState<DocumentItem | null>(null);
   const [chattingDoc, setChattingDoc] = useState<DocumentItem | null>(null);
-
-  // Copied link feedback map
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Collapsed categories state
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  // Fetch data
+  const loadContent = async () => {
+    setLoading(true);
 
-  const { isDemoMode } = useAuth();
-
-  const loadDocuments = async () => {
     if (isDemoMode) {
       const filteredFlds = MOCK_FOLDERS.filter((f) =>
         currentFolder ? f.parentId === currentFolder.id : !f.parentId
@@ -98,6 +165,7 @@ export const DocumentsPage: React.FC = () => {
       } else {
         setBreadcrumbs([]);
       }
+      setLoading(false);
       return;
     }
 
@@ -106,8 +174,6 @@ export const DocumentsPage: React.FC = () => {
         documentService.getDocuments({
           search: search || undefined,
           folderId: currentFolder?.id || undefined,
-          categoryId: selectedCategory || undefined,
-          isFavorite: onlyFavorites || undefined,
         }),
         categoryService.getCategories(),
         folderService.getFolders('DOCUMENT', currentFolder?.id || undefined),
@@ -123,47 +189,91 @@ export const DocumentsPage: React.FC = () => {
         setBreadcrumbs([]);
       }
     } catch (err) {
-      console.error('Failed to load documents:', err);
+      console.error('Failed to load explorer content:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadDocuments();
-    const handleCategoryUpdate = () => loadDocuments();
-    window.addEventListener('workspace-category-updated', handleCategoryUpdate);
-    return () => window.removeEventListener('workspace-category-updated', handleCategoryUpdate);
-  }, [search, selectedCategory, onlyFavorites, currentFolder]);
+    loadContent();
+  }, [search, currentFolder]);
 
-  // Top Pinned / Starred Documents Dock
-  const speedDockDocs = useMemo(() => {
-    const list = [...documents];
-    return list
-      .filter((d) => Boolean(d.isFavorite || d.favorite))
-      .slice(0, 8);
-  }, [documents]);
+  // Navigate into a folder
+  const navigateToFolder = (targetFolder: FolderItem | null) => {
+    setCurrentFolder(targetFolder);
+    setSelectedItemId(null);
+    // Push to navigation history
+    const nextHistory = folderHistory.slice(0, historyIndex + 1);
+    nextHistory.push(targetFolder);
+    setFolderHistory(nextHistory);
+    setHistoryIndex(nextHistory.length - 1);
+  };
 
-  const handleToggleFavorite = async (e: React.MouseEvent, doc: DocumentItem) => {
-    e.stopPropagation();
-    const nextVal = !(doc.isFavorite || doc.favorite);
-    // Instant optimistic UI update
-    setDocuments((prev) =>
-      prev.map((d) => (d.id === doc.id ? { ...d, isFavorite: nextVal, favorite: nextVal } : d))
-    );
-    try {
-      const updated = await documentService.toggleFavorite(doc.id);
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === doc.id ? { ...d, ...updated } : d))
-      );
-    } catch (err) {
-      console.error('Failed to toggle favorite:', err);
+  // Back button
+  const handleBack = () => {
+    if (historyIndex > 0) {
+      const prev = folderHistory[historyIndex - 1];
+      setHistoryIndex(historyIndex - 1);
+      setCurrentFolder(prev);
+      setSelectedItemId(null);
     }
   };
 
+  // Up button (Go to parent folder)
+  const handleUp = () => {
+    if (breadcrumbs.length > 1) {
+      navigateToFolder(breadcrumbs[breadcrumbs.length - 2]);
+    } else if (breadcrumbs.length === 1) {
+      navigateToFolder(null);
+    }
+  };
+
+  // Delete folder
+  const handleDeleteFolder = async (e: React.MouseEvent, folder: FolderItem) => {
+    e.stopPropagation();
+    const ok = await confirm({
+      title: 'Delete Folder',
+      message: `Are you sure you want to delete folder "${folder.name}" and all sub-items inside it?`,
+      confirmText: 'Delete Folder',
+      variant: 'danger',
+    });
+    if (ok) {
+      try {
+        await folderService.deleteFolder(folder.id);
+        loadContent();
+      } catch (err) {
+        console.error('Failed to delete folder:', err);
+      }
+    }
+  };
+
+  // Delete document
+  const handleDeleteDocument = async (e: React.MouseEvent, doc: DocumentItem) => {
+    e.stopPropagation();
+    const ok = await confirm({
+      title: 'Delete Document',
+      message: `Are you sure you want to delete "${doc.name}"?`,
+      confirmText: 'Delete Document',
+      variant: 'danger',
+    });
+    if (ok) {
+      try {
+        await documentService.deleteDocument(doc.id);
+        setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+      } catch (err) {
+        console.error('Failed to delete document:', err);
+      }
+    }
+  };
+
+  // Download handler
   const handleDownload = async (doc: DocumentItem) => {
     const downloadUrl = await documentService.getDownloadUrl(doc.id);
     window.open(downloadUrl, '_blank', 'noopener,noreferrer');
   };
 
+  // Copy link handler
   const handleCopyLink = (e: React.MouseEvent, doc: DocumentItem) => {
     e.stopPropagation();
     const url = doc.downloadUrl || `${window.location.origin}/documents/${doc.id}`;
@@ -172,632 +282,585 @@ export const DocumentsPage: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  // Star toggle
+  const handleToggleFavorite = async (e: React.MouseEvent, doc: DocumentItem) => {
     e.stopPropagation();
-    const ok = await confirm({
-      title: 'Remove Document',
-      message: 'Are you sure you want to remove this document from the vault?',
-      confirmText: 'Remove Document',
-      variant: 'danger',
-    });
-    if (ok) {
-      await documentService.deleteDocument(id);
-      setDocuments((prev) => prev.filter((d) => d.id !== id));
-    }
-  };
-
-  const handleUploadSuccess = async (doc: DocumentItem | Partial<DocumentItem>) => {
-    if ((doc as DocumentItem).id) {
-      setDocuments((prev) => [doc as DocumentItem, ...prev.filter((d) => d.id !== (doc as DocumentItem).id)]);
-    } else {
-      const created = await documentService.uploadDocumentMetadata(doc);
-      setDocuments((prev) => [created, ...prev]);
-    }
-    setPresetCategoryId(undefined);
-    loadDocuments();
-  };
-
-  const handleCategoryCreated = (newCat: Category) => {
-    setCategories((prev) => {
-      if (prev.some((c) => c.id === newCat.id || c.name.toLowerCase() === newCat.name.toLowerCase())) {
-        return prev;
-      }
-      return [...prev, newCat];
-    });
-  };
-
-  const handleDeleteCategory = async (sec: { id?: string; name: string; items: DocumentItem[] }) => {
-    if (sec.name === 'General & Uncategorized' || sec.name === 'General') {
-      alert('Default General category cannot be deleted.');
-      return;
-    }
-
-    const ok = await confirm({
-      title: 'Delete Category',
-      message: `Are you sure you want to delete "${sec.name}" category?`,
-      description:
-        sec.items.length > 0
-          ? `The ${sec.items.length} document(s) inside will remain safely stored as Uncategorized.`
-          : undefined,
-      confirmText: 'Delete Category',
-      variant: 'danger',
-    });
-
-    if (!ok) return;
-
+    const nextVal = !(doc.isFavorite || doc.favorite);
+    setDocuments((prev) =>
+      prev.map((d) => (d.id === doc.id ? { ...d, isFavorite: nextVal, favorite: nextVal } : d))
+    );
     try {
-      if (sec.id) {
-        await categoryService.deleteCategory(sec.id);
-      }
-      setCategories((prev) => prev.filter((c) => (sec.id ? c.id !== sec.id : c.name !== sec.name)));
-      setDocuments((prev) =>
-        prev.map((d) =>
-          d.categoryId === sec.id || d.categoryName === sec.name
-            ? { ...d, categoryId: undefined, categoryName: undefined }
-            : d
-        )
-      );
-      if (selectedCategory === sec.id) setSelectedCategory('');
+      await documentService.toggleFavorite(doc.id);
     } catch (err) {
-      console.error('Failed to delete category:', err);
-      setCategories((prev) => prev.filter((c) => (sec.id ? c.id !== sec.id : c.name !== sec.name)));
+      console.error('Failed to toggle favorite:', err);
     }
   };
 
-  const handleOpenUploadForCategory = (catId?: string) => {
-    setPresetCategoryId(catId);
-    setUploadModalOpen(true);
-  };
-
-  // Filtered documents by file type
-  const filteredDocuments = useMemo(() => {
-    if (fileTypeFilter === 'ALL') return documents;
-    return documents.filter((doc) => {
-      const type = (doc.fileType || '').toLowerCase();
-      const ext = (doc.originalFileName || '').split('.').pop()?.toLowerCase() || '';
-      if (fileTypeFilter === 'PDF') return type.includes('pdf') || ext === 'pdf';
-      if (fileTypeFilter === 'IMAGE') return type.includes('image') || ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'].includes(ext);
-      if (fileTypeFilter === 'CODE') return type.includes('code') || type.includes('text') || ['json', 'sql', 'js', 'ts', 'java', 'py', 'md', 'html', 'css'].includes(ext);
-      if (fileTypeFilter === 'ARCHIVE') return ['zip', 'rar', '7z', 'tar', 'gz'].includes(ext);
-      if (fileTypeFilter === 'OFFICE') return ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv'].includes(ext);
-      return true;
-    });
-  }, [documents, fileTypeFilter]);
-
-  // Grouped documents by category for Sections View
-  const categorySections = useMemo(() => {
-    const sections: { id?: string; name: string; color?: string; items: DocumentItem[] }[] = [];
-
-    // Map known categories
-    categories.forEach((cat) => {
-      const items = filteredDocuments.filter((d) => d.categoryId === cat.id || d.categoryName === cat.name);
-      if (!selectedCategory || selectedCategory === cat.id) {
-        sections.push({
-          id: cat.id,
-          name: cat.name,
-          color: cat.color || '#10B981',
-          items,
-        });
-      }
-    });
-
-    // Uncategorized
-    const uncategorizedItems = filteredDocuments.filter(
-      (d) => !d.categoryId && (!d.categoryName || d.categoryName === 'General' || d.categoryName === 'General & Uncategorized')
-    );
-    if ((!selectedCategory || selectedCategory === 'uncategorized') && uncategorizedItems.length > 0) {
-      sections.push({
-        id: undefined,
-        name: 'General & Uncategorized',
-        color: '#10B981',
-        items: uncategorizedItems,
-      });
+  // Sort toggle
+  const handleHeaderSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'ASC' ? 'DESC' : 'ASC'));
+    } else {
+      setSortField(field);
+      setSortOrder('ASC');
     }
-
-    // Other categories not in table
-    const otherDocs = filteredDocuments.filter(
-      (d) =>
-        d.categoryName &&
-        !categories.some((c) => c.id === d.categoryId || c.name === d.categoryName) &&
-        d.categoryName !== 'General' &&
-        d.categoryName !== 'General & Uncategorized'
-    );
-    const otherGroups: Record<string, DocumentItem[]> = {};
-    otherDocs.forEach((d) => {
-      const name = d.categoryName || 'Other';
-      if (!otherGroups[name]) otherGroups[name] = [];
-      otherGroups[name].push(d);
-    });
-
-    Object.entries(otherGroups).forEach(([name, items]) => {
-      if (!selectedCategory) {
-        sections.push({
-          id: undefined,
-          name,
-          color: '#10B981',
-          items,
-        });
-      }
-    });
-
-    return sections;
-  }, [filteredDocuments, categories, selectedCategory]);
-
-  const toggleCategoryCollapse = (catName: string) => {
-    setCollapsedCategories((prev) => ({ ...prev, [catName]: !prev[catName] }));
   };
+
+  // Sorted Folders & Documents (Folders ALWAYS FIRST, exactly like Windows!)
+  const sortedFolders = useMemo(() => {
+    const list = [...folders];
+    list.sort((a, b) => {
+      if (sortField === 'NAME') {
+        return sortOrder === 'ASC' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+      }
+      if (sortField === 'DATE') {
+        const da = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const db = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return sortOrder === 'ASC' ? da - db : db - da;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [folders, sortField, sortOrder]);
+
+  const sortedDocuments = useMemo(() => {
+    const list = [...documents];
+    list.sort((a, b) => {
+      if (sortField === 'NAME') {
+        return sortOrder === 'ASC' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+      }
+      if (sortField === 'DATE') {
+        const da = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const db = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return sortOrder === 'ASC' ? da - db : db - da;
+      }
+      if (sortField === 'SIZE') {
+        return sortOrder === 'ASC' ? a.fileSize - b.fileSize : b.fileSize - a.fileSize;
+      }
+      if (sortField === 'TYPE') {
+        const ta = getWindowsFileType(a.fileType, a.originalFileName);
+        const tb = getWindowsFileType(b.fileType, b.originalFileName);
+        return sortOrder === 'ASC' ? ta.localeCompare(tb) : tb.localeCompare(ta);
+      }
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [documents, sortField, sortOrder]);
+
+  const totalItemsCount = sortedFolders.length + sortedDocuments.length;
 
   return (
-    <div className="space-y-6 animate-in fade-in pb-12">
-      {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#0F2D1E] dark:text-[#E8FAF0] flex items-center gap-2.5">
-            <div className="p-2 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-sm">
-              <FolderArchive className="w-6 h-6" />
-            </div>
-            Document Storage Vault
-          </h1>
-          <p className="text-xs sm:text-sm text-[#3D7858] dark:text-[#72B38F] mt-0.5">
-            Encrypted cloud storage, in-app live previews, category sections, and direct task linkage.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Create New Category Button */}
+    <div className="flex flex-col h-[calc(100vh-5rem)] max-w-full -mx-4 sm:-mx-6 -my-4 sm:-my-6 bg-[#1F1F1F] text-gray-200 select-none overflow-hidden font-sans">
+      {/* ======================================================== */}
+      {/* 1. TOP WINDOWS 11 EXPLORER COMMAND BAR                  */}
+      {/* ======================================================== */}
+      <div className="flex items-center justify-between px-3 py-2 bg-[#202020] border-b border-[#2D2D2D] text-xs">
+        {/* Left: + New Action Buttons */}
+        <div className="flex items-center gap-1.5">
+          {/* New Folder Button */}
           <button
-            onClick={() => setCategoryModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#0D2218] border border-[#BBEAD0] dark:border-[#1E4933] hover:border-[#48C78E] text-xs font-semibold text-[#0F2D1E] dark:text-[#E8FAF0] transition-all flex items-center gap-1.5 shadow-sm hover:shadow"
-            title="Create a new Category Section"
+            onClick={() => setCreateFolderModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[#2C2C2C] active:bg-[#333] text-gray-200 hover:text-white transition-colors"
+            title="Create a new folder (Ctrl+Shift+N)"
           >
-            <FolderPlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>+ New Category</span>
+            <FolderPlus className="w-4 h-4 text-amber-400" />
+            <span className="font-medium">New folder</span>
           </button>
 
-          {/* Upload Document Button */}
+          {/* Upload File Button */}
           <button
-            onClick={() => handleOpenUploadForCategory()}
-            className="px-4 py-2 bg-gradient-to-r from-[#2ECC71] to-[#27AE60] hover:from-[#27AE60] hover:to-[#219653] text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2"
+            onClick={() => setUploadModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/50 transition-all font-semibold shadow-xs"
+            title="Upload file into current directory"
           >
-            <Upload className="w-4 h-4" />
-            Upload Document
+            <Upload className="w-4 h-4 text-emerald-400" />
+            <span>Upload file</span>
           </button>
-        </div>
-      </div>
 
-      {/* Speed Dock / Pinned Starred Documents */}
-      {speedDockDocs.length > 0 && (
-        <div className="p-4 rounded-3xl bg-gradient-to-r from-[#F0FAF4] via-[#E6F8EE] to-[#DCF5E6] dark:from-[#0B1E14] dark:via-[#0F281B] dark:to-[#133322] border border-[#BBEAD0] dark:border-[#1E4933] shadow-md">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[#0F2D1E] dark:text-[#E8FAF0]">
-                Starred & Pinned Documents
-              </h2>
-            </div>
-            <span className="text-[11px] text-[#3D7858] dark:text-[#72B38F]">
-              Quick In-App Access
-            </span>
+          {/* Vertical Divider */}
+          <div className="h-4 w-[1px] bg-gray-700 mx-1" />
+
+          {/* Sort Dropdown Selector */}
+          <div className="relative group">
+            <button
+              onClick={() => handleHeaderSort(sortField === 'NAME' ? 'DATE' : 'NAME')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-[#2C2C2C] text-gray-300 hover:text-white transition-colors"
+              title="Change Sort order"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
+              <span>Sort: {sortField} ({sortOrder})</span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2.5">
-            {speedDockDocs.map((doc) => (
-              <button
-                key={doc.id}
-                onClick={() => setPreviewDoc(doc)}
-                className="p-2.5 rounded-2xl bg-white/90 dark:bg-[#08170F]/90 border border-[#BBEAD0] dark:border-[#1E4933] hover:border-[#48C78E] hover:shadow-md transition-all group flex flex-col items-center text-center relative"
-                title={`${doc.name} (${doc.originalFileName})`}
-              >
-                <Star className="w-3 h-3 fill-amber-400 text-amber-400 absolute top-1.5 right-1.5" />
-                <div className="w-8 h-8 rounded-xl bg-[#F0FAF4] dark:bg-[#0D2218] border border-[#BBEAD0] dark:border-[#1E4933] flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                  {getDocumentFormatIcon(doc.fileType, doc.originalFileName, 'w-4 h-4')}
-                </div>
-                <span className="text-[11px] font-semibold text-[#0F2D1E] dark:text-[#E8FAF0] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 truncate w-full">
-                  {doc.name}
-                </span>
-                <span className="text-[9px] text-[#3D7858] dark:text-[#72B38F] font-mono mt-0.5">
-                  {formatFileSize(doc.fileSize)}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Horizontal Category Filter Pills Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-        <button
-          onClick={() => setSelectedCategory('')}
-          className={clsx(
-            'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 border shadow-2xs',
-            !selectedCategory
-              ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-500/20'
-              : 'bg-white dark:bg-[#0D2218] border-[#BBEAD0] dark:border-[#1E4933] text-[#3D7858] dark:text-[#72B38F] hover:text-[#0F2D1E] dark:hover:text-[#E8FAF0]'
-          )}
-        >
-          <span>All Categories</span>
-          <span className={clsx('px-1.5 py-0.2 rounded-full text-[10px]', !selectedCategory ? 'bg-emerald-700 text-white' : 'bg-[#E8F7EF] dark:bg-[#13261C]')}>
-            {documents.length}
-          </span>
-        </button>
-
-        {categories.map((cat) => {
-          const count = documents.filter((d) => d.categoryId === cat.id || d.categoryName === cat.name).length;
-          const isSelected = selectedCategory === cat.id;
-          return (
+          {/* View Mode Toggle: Details vs Grid */}
+          <div className="flex items-center bg-[#181818] rounded-md p-0.5 border border-[#333]">
             <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(isSelected ? '' : cat.id)}
+              onClick={() => setViewMode('DETAILS')}
               className={clsx(
-                'px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 border shadow-2xs',
-                isSelected
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-500/20'
-                  : 'bg-white dark:bg-[#0D2218] border-[#BBEAD0] dark:border-[#1E4933] text-[#3D7858] dark:text-[#72B38F] hover:text-[#0F2D1E] dark:hover:text-[#E8FAF0]'
+                'flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors',
+                viewMode === 'DETAILS' ? 'bg-[#2E2E2E] text-white shadow-xs font-semibold' : 'text-gray-400 hover:text-gray-200'
               )}
+              title="Details View (Windows Explorer Table)"
             >
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: cat.color || '#10B981' }}
-              />
-              <span>{cat.name}</span>
-              <span className={clsx('px-1.5 py-0.2 rounded-full text-[10px]', isSelected ? 'bg-emerald-700 text-white' : 'bg-[#E8F7EF] dark:bg-[#13261C]')}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
-
-        {/* Quick Add Category Pill */}
-        <button
-          onClick={() => setCategoryModalOpen(true)}
-          className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-          title="Create a new category"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>New Category</span>
-        </button>
-      </div>
-
-      {/* Search, File Type Filter & View Switcher Bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-[#0D2218] border border-[#BBEAD0] dark:border-[#1E4933] shadow-sm">
-        {/* Left: Search input */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-[#3D7858] dark:text-[#72B38F] absolute left-3 top-2.5" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search documents, file names, tags..."
-            className="w-full pl-9 pr-3 py-1.5 bg-[#F2FBF6] dark:bg-[#132D20] border border-[#BBEAD0] dark:border-[#1E4933] rounded-xl text-xs text-[#0F2D1E] dark:text-[#E8FAF0] placeholder-[#3D7858]/60 outline-none focus:border-[#48C78E]"
-          />
-        </div>
-
-        {/* Center: File Type Filter Badges */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-          {(['ALL', 'PDF', 'IMAGE', 'CODE', 'ARCHIVE', 'OFFICE'] as FileTypeFilter[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFileTypeFilter(f)}
-              className={clsx(
-                'px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors whitespace-nowrap',
-                fileTypeFilter === f
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-[#F2FBF6] dark:bg-[#132D20] text-[#3D7858] dark:text-[#72B38F] hover:text-[#0F2D1E] dark:hover:text-[#E8FAF0]'
-              )}
-            >
-              {f === 'ALL' ? 'All Types' : f}
-            </button>
-          ))}
-        </div>
-
-        {/* Right: Starred Filter & View Switcher */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Starred Filter */}
-          <button
-            onClick={() => setOnlyFavorites(!onlyFavorites)}
-            className={clsx(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
-              onlyFavorites
-                ? 'bg-amber-500/10 border-amber-500/40 text-amber-500'
-                : 'bg-[#F2FBF6] dark:bg-[#132D20] border-[#BBEAD0] dark:border-[#1E4933] text-[#3D7858] dark:text-[#72B38F] hover:text-[#0F2D1E] dark:hover:text-[#E8FAF0]'
-            )}
-          >
-            <Star className={clsx('w-3.5 h-3.5', onlyFavorites && 'fill-current text-amber-500')} />
-            <span>Starred</span>
-          </button>
-
-          {/* View Switcher: Sections, Grid, List */}
-          <div className="flex items-center bg-[#F2FBF6] dark:bg-[#132D20] p-1 rounded-xl border border-[#BBEAD0] dark:border-[#1E4933]">
-            <button
-              onClick={() => setViewMode('SECTIONS')}
-              className={clsx(
-                'p-1.5 rounded-lg text-xs transition-colors flex items-center gap-1 font-medium',
-                viewMode === 'SECTIONS'
-                  ? 'bg-white dark:bg-[#08170F] text-[#25935C] dark:text-[#5FBF8F] shadow-sm'
-                  : 'text-[#3D7858] dark:text-[#72B38F] hover:text-[#0F2D1E] dark:hover:text-[#E8FAF0]'
-              )}
-              title="Category Sections View"
-            >
-              <FolderKanban className="w-4 h-4" />
-              <span className="hidden sm:inline text-[11px]">Sections</span>
+              <ListIcon className="w-3.5 h-3.5" />
+              <span>Details</span>
             </button>
             <button
               onClick={() => setViewMode('GRID')}
               className={clsx(
-                'p-1.5 rounded-lg text-xs transition-colors',
-                viewMode === 'GRID'
-                  ? 'bg-white dark:bg-[#08170F] text-[#25935C] dark:text-[#5FBF8F] shadow-sm'
-                  : 'text-[#3D7858] dark:text-[#72B38F] hover:text-[#0F2D1E] dark:hover:text-[#E8FAF0]'
+                'flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors',
+                viewMode === 'GRID' ? 'bg-[#2E2E2E] text-white shadow-xs font-semibold' : 'text-gray-400 hover:text-gray-200'
               )}
-              title="Flat Grid View"
+              title="Large Icons View"
             >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('LIST')}
-              className={clsx(
-                'p-1.5 rounded-lg text-xs transition-colors',
-                viewMode === 'LIST'
-                  ? 'bg-white dark:bg-[#08170F] text-[#25935C] dark:text-[#5FBF8F] shadow-sm'
-                  : 'text-[#3D7858] dark:text-[#72B38F] hover:text-[#0F2D1E] dark:hover:text-[#E8FAF0]'
-              )}
-              title="List View"
-            >
-              <ListIcon className="w-4 h-4" />
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Icons</span>
             </button>
           </div>
+        </div>
+
+        {/* Right: Quick Search Box */}
+        <div className="relative w-48 sm:w-64">
+          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Search ${currentFolder ? currentFolder.name : '00-(UNIVERISTY OF MORATUWA)'}...`}
+            className="w-full pl-8 pr-3 py-1.5 bg-[#181818] border border-[#333] hover:border-[#444] focus:border-sky-500 rounded-md text-xs text-gray-200 placeholder-gray-500 outline-none transition-colors"
+          />
         </div>
       </div>
 
-      {/* Hierarchical Folder Explorer */}
-      <FolderExplorer
-        type="DOCUMENT"
-        currentFolder={currentFolder}
-        breadcrumbs={breadcrumbs}
-        folders={folders}
-        onSelectFolder={(f) => setCurrentFolder(f)}
-        onRefresh={loadDocuments}
-      />
+      {/* ======================================================== */}
+      {/* 2. BREADCRUMB ADDRESS BAR & NAVIGATION CONTROLS          */}
+      {/* ======================================================== */}
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#191919] border-b border-[#282828] text-xs">
+        {/* Navigation Buttons: Back, Forward, Up, Refresh */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleBack}
+            disabled={historyIndex <= 0}
+            className="p-1 rounded hover:bg-[#2C2C2C] disabled:opacity-30 disabled:hover:bg-transparent text-gray-300"
+            title="Back (Alt + Left Arrow)"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleUp}
+            disabled={!currentFolder}
+            className="p-1 rounded hover:bg-[#2C2C2C] disabled:opacity-30 disabled:hover:bg-transparent text-gray-300"
+            title="Up to parent folder (Alt + Up Arrow)"
+          >
+            <ArrowUp className="w-4 h-4" />
+          </button>
+          <button
+            onClick={loadContent}
+            className="p-1 rounded hover:bg-[#2C2C2C] text-gray-300"
+            title="Refresh (F5)"
+          >
+            <RefreshCw className={clsx('w-3.5 h-3.5', loading && 'animate-spin text-sky-400')} />
+          </button>
+        </div>
 
-      {/* Main Content Area */}
-      {viewMode === 'SECTIONS' ? (
-        categorySections.length === 0 ? (
-          <div className="p-12 rounded-3xl bg-[#F0FAF4] dark:bg-[#0D2218] border border-[#BBEAD0] dark:border-[#1E4933] text-center space-y-3 shadow-sm">
-            <FolderArchive className="w-12 h-12 text-[#48C78E] mx-auto opacity-60" />
-            <h3 className="text-lg font-bold text-[#0F2D1E] dark:text-[#E8FAF0]">
-              No categories found
-            </h3>
-            <p className="text-xs text-[#3D7858] dark:text-[#72B38F] max-w-sm mx-auto">
-              Create your first category section or upload documents to organize your files.
+        {/* Address Path Bar (Exact Windows 11 Breadcrumbs) */}
+        <div className="flex-1 flex items-center gap-1 px-3 py-1.5 bg-[#252525] border border-[#383838] hover:border-[#4D4D4D] rounded-md overflow-x-auto no-scrollbar font-sans text-xs">
+          {/* Drive Root Icon */}
+          <button
+            onClick={() => navigateToFolder(null)}
+            className="flex items-center gap-1.5 text-gray-300 hover:text-white font-medium shrink-0 hover:bg-[#333] px-1.5 py-0.5 rounded"
+          >
+            <HardDrive className="w-3.5 h-3.5 text-sky-400" />
+            <span>New Volume (D:)</span>
+          </button>
+
+          <ChevronRight className="w-3 h-3 text-gray-500 shrink-0" />
+
+          {/* Root Workspace Folder */}
+          <button
+            onClick={() => navigateToFolder(null)}
+            className={clsx(
+              'px-1.5 py-0.5 rounded shrink-0 transition-colors',
+              !currentFolder ? 'bg-[#333] text-white font-semibold' : 'text-gray-300 hover:text-white hover:bg-[#333]'
+            )}
+          >
+            00-(UNIVERISTY OF MORATUWA)
+          </button>
+
+          {/* Sub-folder Breadcrumbs */}
+          {breadcrumbs.map((crumb, idx) => {
+            const isCurrent = idx === breadcrumbs.length - 1;
+            return (
+              <React.Fragment key={crumb.id}>
+                <ChevronRight className="w-3 h-3 text-gray-500 shrink-0" />
+                <button
+                  onClick={() => navigateToFolder(crumb)}
+                  className={clsx(
+                    'px-1.5 py-0.5 rounded shrink-0 transition-colors truncate max-w-[200px]',
+                    isCurrent ? 'bg-[#333] text-white font-semibold' : 'text-gray-300 hover:text-white hover:bg-[#333]'
+                  )}
+                  title={crumb.name}
+                >
+                  {crumb.name}
+                </button>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 3. EXPLORER BODY: DETAILS TABLE OR GRID                  */}
+      {/* ======================================================== */}
+      <div className="flex-1 overflow-y-auto px-4 py-2">
+        {totalItemsCount === 0 && !loading ? (
+          /* Empty Folder State (Windows style) */
+          <div className="flex flex-col items-center justify-center h-80 text-center">
+            <div className="p-4 rounded-full bg-[#2A2A2A] text-gray-400 mb-3">
+              <FolderOpen className="w-10 h-10 stroke-1" />
+            </div>
+            <h4 className="text-sm font-medium text-gray-300">This folder is empty.</h4>
+            <p className="text-xs text-gray-500 mt-1 max-w-xs">
+              Upload files or create sub-folders inside this directory.
             </p>
-            <div className="flex items-center justify-center gap-2 pt-2">
+            <div className="flex items-center gap-3 mt-4">
               <button
-                onClick={() => setCategoryModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-white dark:bg-[#132D20] border border-[#BBEAD0] dark:border-[#1E4933] text-xs font-bold text-[#0F2D1E] dark:text-[#E8FAF0]"
+                onClick={() => setCreateFolderModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-[#2C2C2C] hover:bg-[#383838] text-xs font-semibold text-gray-200 border border-gray-700 transition-colors"
               >
-                + Create Category
+                <FolderPlus className="w-3.5 h-3.5 text-amber-400" />
+                New folder
               </button>
               <button
-                onClick={() => handleOpenUploadForCategory()}
-                className="px-4 py-2 bg-gradient-to-r from-[#2ECC71] to-[#27AE60] text-white rounded-xl text-xs font-bold shadow"
+                onClick={() => setUploadModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-colors"
               >
-                + Upload Document
+                <Upload className="w-3.5 h-3.5" />
+                Upload file
               </button>
             </div>
           </div>
-        ) : (
-          /* CATEGORY SECTIONS VIEW */
-          <div className="space-y-8">
-            {categorySections.map((sec) => {
-              const isCollapsed = collapsedCategories[sec.name];
-              return (
-                <div key={sec.name} className="space-y-3">
-                  {/* Clean Category Header with Accent Dot, Title, Count & Actions */}
-                  <div className="flex items-center justify-between gap-3 pb-1 border-b border-[#D5F2E2] dark:border-[#193A29]">
-                    <div
-                      onClick={() => toggleCategoryCollapse(sec.name)}
-                      className="flex items-center gap-2.5 cursor-pointer select-none group"
-                    >
-                      <button
-                        className="p-1 rounded-lg hover:bg-emerald-500/10 text-[#3D7858] dark:text-[#72B38F] transition-colors"
-                        title={isCollapsed ? 'Expand category' : 'Collapse category'}
-                      >
-                        {isCollapsed ? (
-                          <ChevronRight className="w-4 h-4" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4" />
-                        )}
-                      </button>
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-2xs"
-                        style={{ backgroundColor: sec.color || '#10B981' }}
+        ) : viewMode === 'DETAILS' ? (
+          /* ======================================================== */
+          /* DETAILS VIEW (Exact Windows File Explorer Table)        */
+          /* ======================================================== */
+          <table className="w-full text-left border-collapse text-xs">
+            {/* Table Header */}
+            <thead>
+              <tr className="border-b border-[#2F2F2F] text-gray-400 font-medium">
+                <th
+                  onClick={() => handleHeaderSort('NAME')}
+                  className="py-2 px-2 hover:bg-[#2A2A2A] cursor-pointer rounded-tl transition-colors w-[42%]"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Name</span>
+                    {sortField === 'NAME' && (
+                      <span className="text-sky-400 font-bold">{sortOrder === 'ASC' ? '▲' : '▼'}</span>
+                    )}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleHeaderSort('DATE')}
+                  className="py-2 px-2 hover:bg-[#2A2A2A] cursor-pointer transition-colors w-[22%]"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Date modified</span>
+                    {sortField === 'DATE' && (
+                      <span className="text-sky-400 font-bold">{sortOrder === 'ASC' ? '▲' : '▼'}</span>
+                    )}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleHeaderSort('TYPE')}
+                  className="py-2 px-2 hover:bg-[#2A2A2A] cursor-pointer transition-colors w-[22%]"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Type</span>
+                    {sortField === 'TYPE' && (
+                      <span className="text-sky-400 font-bold">{sortOrder === 'ASC' ? '▲' : '▼'}</span>
+                    )}
+                  </div>
+                </th>
+                <th
+                  onClick={() => handleHeaderSort('SIZE')}
+                  className="py-2 px-2 hover:bg-[#2A2A2A] cursor-pointer transition-colors text-right w-[8%]"
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    <span>Size</span>
+                    {sortField === 'SIZE' && (
+                      <span className="text-sky-400 font-bold">{sortOrder === 'ASC' ? '▲' : '▼'}</span>
+                    )}
+                  </div>
+                </th>
+                <th className="py-2 px-2 text-right w-[6%]"></th>
+              </tr>
+            </thead>
+
+            {/* Table Body */}
+            <tbody className="divide-y divide-[#262626]">
+              {/* 1. FOLDERS LIST (ALWAYS FIRST!) */}
+              {sortedFolders.map((folder) => {
+                const isSelected = selectedItemId === folder.id;
+                return (
+                  <tr
+                    key={folder.id}
+                    onClick={() => setSelectedItemId(folder.id)}
+                    onDoubleClick={() => navigateToFolder(folder)}
+                    className={clsx(
+                      'group transition-colors cursor-pointer select-none',
+                      isSelected ? 'bg-[#004C87]/40 text-white' : 'hover:bg-[#282828] text-gray-200'
+                    )}
+                  >
+                    {/* Folder Name & Icon */}
+                    <td className="py-1.5 px-2 flex items-center gap-2.5 truncate">
+                      {/* Windows Yellow Folder Icon */}
+                      <Folder
+                        className="w-4 h-4 fill-[#F5BA31] text-[#F5BA31] shrink-0"
+                        style={folder.color ? { fill: folder.color, color: folder.color } : {}}
                       />
-                      <h2 className="font-bold text-base sm:text-lg text-[#0F2D1E] dark:text-[#E8FAF0] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors flex items-center gap-2">
-                        {sec.name}
-                      </h2>
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#E8F7EF] dark:bg-[#13261C] text-[#1E7247] dark:text-[#5FBF8F] border border-[#BBEAD0] dark:border-[#20372B]">
-                        {sec.items.length} {sec.items.length === 1 ? 'file' : 'files'}
-                      </span>
-                    </div>
-
-                    {/* Actions for this category */}
-                    <div className="flex items-center gap-1.5">
-                      {/* Upload button for this category */}
                       <button
-                        onClick={() => handleOpenUploadForCategory(sec.id)}
-                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#0D2218] border border-[#BBEAD0] dark:border-[#1E4933] hover:border-[#48C78E] hover:bg-[#E8F7EF] dark:hover:bg-[#13261C] text-xs font-bold text-[#1E7247] dark:text-[#5FBF8F] transition-all flex items-center gap-1.5 shadow-2xs"
-                        title={`Upload file to ${sec.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigateToFolder(folder);
+                        }}
+                        className="truncate text-left font-medium hover:underline focus:outline-none"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Upload here</span>
+                        {folder.name}
                       </button>
+                    </td>
 
-                      {/* Delete Category Button */}
-                      {sec.name !== 'General & Uncategorized' && sec.name !== 'General' && (
+                    {/* Date Modified */}
+                    <td className="py-1.5 px-2 text-gray-400 font-mono text-[11px] whitespace-nowrap">
+                      {formatWindowsDate(folder.updatedAt || folder.createdAt)}
+                    </td>
+
+                    {/* Type */}
+                    <td className="py-1.5 px-2 text-gray-400 truncate">
+                      File folder
+                    </td>
+
+                    {/* Size / Item Count */}
+                    <td className="py-1.5 px-2 text-gray-500 font-mono text-[11px] text-right whitespace-nowrap">
+                      {folder.itemCount ? `${folder.itemCount} items` : ''}
+                    </td>
+
+                    {/* Row Quick Action: Delete Folder */}
+                    <td className="py-1.5 px-2 text-right">
+                      <button
+                        onClick={(e) => handleDeleteFolder(e, folder)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-400 rounded hover:bg-[#333] transition-all"
+                        title="Delete folder"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {/* 2. FILES LIST (AFTER FOLDERS) */}
+              {sortedDocuments.map((doc) => {
+                const isSelected = selectedItemId === doc.id;
+                const fileTypeLabel = getWindowsFileType(doc.fileType, doc.originalFileName);
+
+                return (
+                  <tr
+                    key={doc.id}
+                    onClick={() => setSelectedItemId(doc.id)}
+                    onDoubleClick={() => setPreviewDoc(doc)}
+                    className={clsx(
+                      'group transition-colors cursor-pointer select-none',
+                      isSelected ? 'bg-[#004C87]/40 text-white' : 'hover:bg-[#282828] text-gray-200'
+                    )}
+                  >
+                    {/* File Name & Icon */}
+                    <td className="py-1.5 px-2 flex items-center gap-2.5 truncate">
+                      {getWindowsFileIcon(doc.fileType, doc.originalFileName, 'w-4 h-4 shrink-0')}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewDoc(doc);
+                        }}
+                        className="truncate text-left hover:underline focus:outline-none"
+                        title={`${doc.name} (${doc.originalFileName})`}
+                      >
+                        {doc.originalFileName || doc.name}
+                      </button>
+                    </td>
+
+                    {/* Date Modified */}
+                    <td className="py-1.5 px-2 text-gray-400 font-mono text-[11px] whitespace-nowrap">
+                      {formatWindowsDate(doc.updatedAt || doc.createdAt)}
+                    </td>
+
+                    {/* Type */}
+                    <td className="py-1.5 px-2 text-gray-400 truncate">
+                      {fileTypeLabel}
+                    </td>
+
+                    {/* Size */}
+                    <td className="py-1.5 px-2 text-gray-300 font-mono text-[11px] text-right whitespace-nowrap">
+                      {formatFileSize(doc.fileSize)}
+                    </td>
+
+                    {/* Action Buttons Toolbar */}
+                    <td className="py-1.5 px-2 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Preview */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteCategory(sec);
+                            setPreviewDoc(doc);
                           }}
-                          className="p-1.5 rounded-xl border border-[#BBEAD0] dark:border-[#1E4933] bg-white dark:bg-[#0D2218] text-[#3D7858] dark:text-[#72B38F] hover:text-rose-500 dark:hover:text-rose-400 hover:border-rose-400/50 hover:bg-rose-500/10 dark:hover:bg-rose-500/20 transition-all shadow-2xs"
-                          title={`Delete "${sec.name}" category`}
+                          className="p-1 text-gray-400 hover:text-white rounded hover:bg-[#333]"
+                          title="Open / Preview"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Download */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(doc);
+                          }}
+                          className="p-1 text-gray-400 hover:text-emerald-400 rounded hover:bg-[#333]"
+                          title="Download"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Star */}
+                        <button
+                          onClick={(e) => handleToggleFavorite(e, doc)}
+                          className="p-1 text-gray-400 hover:text-amber-400 rounded hover:bg-[#333]"
+                          title="Star"
+                        >
+                          <Star className={clsx('w-3.5 h-3.5', (doc.isFavorite || doc.favorite) && 'fill-amber-400 text-amber-400')} />
+                        </button>
+
+                        {/* AI Chat */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setChattingDoc(doc);
+                          }}
+                          className="p-1 text-gray-400 hover:text-teal-400 rounded hover:bg-[#333]"
+                          title="Ask AI about this document"
+                        >
+                          <Bot className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          onClick={(e) => handleDeleteDocument(e, doc)}
+                          className="p-1 text-gray-400 hover:text-rose-400 rounded hover:bg-[#333]"
+                          title="Delete file"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                    </div>
-                  </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          /* ======================================================== */
+          /* GRID VIEW (Large Icons Mode)                            */
+          /* ======================================================== */
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 pt-2">
+            {/* Folders in Grid */}
+            {sortedFolders.map((folder) => (
+              <div
+                key={folder.id}
+                onClick={() => setSelectedItemId(folder.id)}
+                onDoubleClick={() => navigateToFolder(folder)}
+                className={clsx(
+                  'group flex flex-col items-center p-3 rounded-lg border border-transparent hover:border-[#383838] hover:bg-[#252525] transition-all cursor-pointer text-center relative',
+                  selectedItemId === folder.id && 'bg-[#004C87]/40 border-sky-500/50'
+                )}
+              >
+                <Folder
+                  className="w-12 h-12 fill-[#F5BA31] text-[#F5BA31] mb-2 group-hover:scale-105 transition-transform"
+                  style={folder.color ? { fill: folder.color, color: folder.color } : {}}
+                />
+                <span className="text-xs font-medium text-gray-200 line-clamp-2 w-full break-words">
+                  {folder.name}
+                </span>
+                <span className="text-[10px] text-gray-500 mt-1">
+                  {folder.itemCount ? `${folder.itemCount} items` : 'Folder'}
+                </span>
+              </div>
+            ))}
 
-                  {/* Category Grid */}
-                  {!isCollapsed && (
-                    <div>
-                      {sec.items.length === 0 ? (
-                        <div className="p-6 text-center border border-dashed border-[#BBEAD0] dark:border-[#1E4933] rounded-2xl bg-[#F9FDFB] dark:bg-[#08170F]/50">
-                          <p className="text-xs text-[#3D7858] dark:text-[#72B38F] mb-2.5">
-                            No documents in <span className="font-semibold text-[#0F2D1E] dark:text-[#E8FAF0]">{sec.name}</span> yet.
-                          </p>
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleOpenUploadForCategory(sec.id)}
-                              className="px-3.5 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-semibold inline-flex items-center gap-1 transition-colors"
-                            >
-                              <Plus className="w-3.5 h-3.5" /> Upload First Document
-                            </button>
-                            {sec.name !== 'General & Uncategorized' && sec.name !== 'General' && (
-                              <button
-                                onClick={() => handleDeleteCategory(sec)}
-                                className="px-3 py-1.5 border border-rose-300 dark:border-rose-900/60 hover:border-rose-500 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-xl text-xs font-semibold inline-flex items-center gap-1 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" /> Delete Category
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-                          {sec.items.map((doc) => (
-                            <DocumentCard
-                              key={doc.id}
-                              doc={doc}
-                              isCopied={copiedId === doc.id}
-                              onPreview={() => setPreviewDoc(doc)}
-                              onToggleFavorite={(e) => handleToggleFavorite(e, doc)}
-                              onCopyLink={(e) => handleCopyLink(e, doc)}
-                              onDownload={() => handleDownload(doc)}
-                              onDelete={(e) => handleDelete(e, doc.id)}
-                              onChatAi={(e) => {
-                                e.stopPropagation();
-                                setChattingDoc(doc);
-                              }}
-                              onLinkTask={(e) => {
-                                e.stopPropagation();
-                                setLinkModalDoc(doc);
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )
-      ) : filteredDocuments.length === 0 ? (
-        <div className="p-12 rounded-3xl bg-[#F0FAF4] dark:bg-[#0D2218] border border-[#BBEAD0] dark:border-[#1E4933] text-center space-y-3 shadow-sm">
-          <FolderArchive className="w-12 h-12 text-[#48C78E] mx-auto opacity-60" />
-          <h3 className="text-lg font-bold text-[#0F2D1E] dark:text-[#E8FAF0]">
-            No documents found
-          </h3>
-          <p className="text-xs text-[#3D7858] dark:text-[#72B38F] max-w-sm mx-auto">
-            {search
-              ? `No files matching "${search}". Try clearing search filter.`
-              : 'Upload your first project specification, SRS diagram, or assignment document.'}
-          </p>
-          <div className="flex items-center justify-center gap-2 pt-2">
-            <button
-              onClick={() => setCategoryModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-white dark:bg-[#132D20] border border-[#BBEAD0] dark:border-[#1E4933] text-xs font-bold text-[#0F2D1E] dark:text-[#E8FAF0]"
-            >
-              + Create Category
-            </button>
-            <button
-              onClick={() => handleOpenUploadForCategory()}
-              className="px-4 py-2 bg-gradient-to-r from-[#2ECC71] to-[#27AE60] text-white rounded-xl text-xs font-bold shadow"
-            >
-              + Upload Document
-            </button>
-          </div>
-        </div>
-      ) : viewMode === 'GRID' ? (
-        /* FLAT GRID VIEW */
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-          {filteredDocuments.map((doc) => (
-            <DocumentCard
-              key={doc.id}
-              doc={doc}
-              isCopied={copiedId === doc.id}
-              onPreview={() => setPreviewDoc(doc)}
-              onToggleFavorite={(e) => handleToggleFavorite(e, doc)}
-              onCopyLink={(e) => handleCopyLink(e, doc)}
-              onDownload={() => handleDownload(doc)}
-              onDelete={(e) => handleDelete(e, doc.id)}
-              onChatAi={(e) => {
-                e.stopPropagation();
-                setChattingDoc(doc);
-              }}
-              onLinkTask={(e) => {
-                e.stopPropagation();
-                setLinkModalDoc(doc);
-              }}
-            />
-          ))}
-        </div>
-      ) : (
-        /* LIST VIEW */
-        <div className="rounded-2xl bg-white dark:bg-[#0E1C15] border border-[#BBEAD0] dark:border-[#1E4933] overflow-hidden shadow-sm">
-          <div className="divide-y divide-[#D5F2E2] dark:divide-[#193A29]">
-            {filteredDocuments.map((doc) => (
-              <DocumentRow
+            {/* Documents in Grid */}
+            {sortedDocuments.map((doc) => (
+              <div
                 key={doc.id}
-                doc={doc}
-                isCopied={copiedId === doc.id}
-                onPreview={() => setPreviewDoc(doc)}
-                onToggleFavorite={(e) => handleToggleFavorite(e, doc)}
-                onCopyLink={(e) => handleCopyLink(e, doc)}
-                onDownload={() => handleDownload(doc)}
-                onDelete={(e) => handleDelete(e, doc.id)}
-                onChatAi={(e) => {
-                  e.stopPropagation();
-                  setChattingDoc(doc);
-                }}
-                onLinkTask={(e) => {
-                  e.stopPropagation();
-                  setLinkModalDoc(doc);
-                }}
-              />
+                onClick={() => setSelectedItemId(doc.id)}
+                onDoubleClick={() => setPreviewDoc(doc)}
+                className={clsx(
+                  'group flex flex-col items-center p-3 rounded-lg border border-transparent hover:border-[#383838] hover:bg-[#252525] transition-all cursor-pointer text-center relative',
+                  selectedItemId === doc.id && 'bg-[#004C87]/40 border-sky-500/50'
+                )}
+              >
+                <div className="w-12 h-12 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                  {getWindowsFileIcon(doc.fileType, doc.originalFileName, 'w-10 h-10')}
+                </div>
+                <span className="text-xs text-gray-200 line-clamp-2 w-full break-words">
+                  {doc.originalFileName || doc.name}
+                </span>
+                <span className="text-[10px] text-gray-500 font-mono mt-1">
+                  {formatFileSize(doc.fileSize)}
+                </span>
+              </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* ======================================================== */}
+      {/* 4. BOTTOM STATUS BAR (Windows Explorer Style)            */}
+      {/* ======================================================== */}
+      <div className="flex items-center justify-between px-3 py-1 bg-[#1A1A1A] border-t border-[#292929] text-[11px] text-gray-400">
+        <div>
+          <span>
+            {totalItemsCount} item{totalItemsCount !== 1 ? 's' : ''} ({sortedFolders.length} folder{sortedFolders.length !== 1 ? 's' : ''}, {sortedDocuments.length} file{sortedDocuments.length !== 1 ? 's' : ''})
+          </span>
+          {selectedItemId && <span className="ml-3 text-sky-400">| 1 item selected</span>}
         </div>
-      )}
+
+        <div className="flex items-center gap-2">
+          <span>Storage: PostgreSQL & Supabase Resilient Vault</span>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* MODALS                                                   */}
+      {/* ======================================================== */}
+      {/* Create Folder Modal */}
+      <CreateFolderModal
+        isOpen={createFolderModalOpen}
+        onClose={() => setCreateFolderModalOpen(false)}
+        parentId={currentFolder?.id}
+        parentName={currentFolder?.name}
+        type="DOCUMENT"
+        onFolderCreated={() => loadContent()}
+      />
 
       {/* Upload Document Modal */}
       <DocumentUploadModal
         isOpen={uploadModalOpen}
-        onClose={() => {
-          setUploadModalOpen(false);
-          setPresetCategoryId(undefined);
-        }}
-        onUploadSuccess={handleUploadSuccess}
+        onClose={() => setUploadModalOpen(false)}
+        onUploadSuccess={() => loadContent()}
         categories={categories}
-        initialCategoryId={presetCategoryId}
         initialFolderId={currentFolder?.id}
         initialFolderName={currentFolder?.name}
-        onCategoryCreated={handleCategoryCreated}
       />
 
-      {/* Live In-App Document Preview Modal */}
+      {/* Preview Modal */}
       <DocumentPreviewModal
         isOpen={!!previewDoc}
         onClose={() => setPreviewDoc(null)}
@@ -805,328 +868,20 @@ export const DocumentsPage: React.FC = () => {
         onDownload={handleDownload}
       />
 
-      {/* AI Document Q&A / Chat Modal */}
+      {/* AI Chat Modal */}
       <AiDocumentChatModal
         isOpen={!!chattingDoc}
         onClose={() => setChattingDoc(null)}
         document={chattingDoc}
       />
 
-      {/* Link Document to Task Modal */}
+      {/* Link to Task Modal */}
       <LinkDocumentToTaskModal
         isOpen={!!linkModalDoc}
         onClose={() => setLinkModalDoc(null)}
         document={linkModalDoc}
-        onLinked={loadDocuments}
-      />
-
-      {/* Create New Category Modal */}
-      <CategoryModal
-        isOpen={categoryModalOpen}
-        onClose={() => setCategoryModalOpen(false)}
-        onCategoryCreated={handleCategoryCreated}
-        defaultType="DOCUMENT"
+        onLinked={loadContent}
       />
     </div>
   );
 };
-
-/* --- Visual Squarish Leaf-Green Document Card Component --- */
-interface DocumentCardProps {
-  doc: DocumentItem;
-  isCopied: boolean;
-  onPreview: () => void;
-  onToggleFavorite: (e: React.MouseEvent) => void;
-  onCopyLink: (e: React.MouseEvent) => void;
-  onDownload: () => void;
-  onDelete: (e: React.MouseEvent) => void;
-  onLinkTask: (e: React.MouseEvent) => void;
-  onChatAi: (e: React.MouseEvent) => void;
-}
-
-const DocumentCard: React.FC<DocumentCardProps> = ({
-  doc,
-  isCopied,
-  onPreview,
-  onToggleFavorite,
-  onCopyLink,
-  onDownload,
-  onDelete,
-  onLinkTask,
-  onChatAi,
-}) => {
-  const ext = (doc.originalFileName || '').split('.').pop()?.toLowerCase() || '';
-  const isFav = Boolean(doc.isFavorite || doc.favorite);
-
-  return (
-    <div
-      onClick={onPreview}
-      className="p-4 rounded-3xl bg-white dark:bg-[#0A1811] border border-[#BBEAD0] dark:border-[#1E4933] hover:border-emerald-500/80 hover:shadow-lg transition-all duration-200 shadow-sm flex flex-col justify-between cursor-pointer group relative"
-    >
-      {/* Top Row: Format pill & Star */}
-      <div className="flex items-center justify-between gap-1 w-full mb-3">
-        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F7EF] dark:bg-[#13261C] text-[#1E7247] dark:text-[#5FBF8F] border border-[#BBEAD0] dark:border-[#20372B] uppercase">
-          .{ext || 'FILE'}
-        </span>
-
-        <div className="flex items-center gap-1">
-          {/* Linked task count */}
-          {(doc.linkedTaskCount || 0) > 0 && (
-            <span
-              className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-              title={`${doc.linkedTaskCount} linked tasks`}
-            >
-              <CheckSquare className="w-2.5 h-2.5" />
-              {doc.linkedTaskCount}
-            </span>
-          )}
-
-          <button
-            onClick={onToggleFavorite}
-            className="p-1 rounded-lg hover:bg-amber-400/10 text-[#3D7858]/60 dark:text-[#72B38F]/60 hover:text-amber-400 transition-colors flex-shrink-0"
-            title={isFav ? 'Unstar favorite' : 'Star as favorite'}
-          >
-            <Star
-              className={clsx(
-                'w-4 h-4 transition-all duration-200',
-                isFav ? 'fill-amber-400 text-amber-400 scale-110' : 'hover:scale-110'
-              )}
-            />
-          </button>
-        </div>
-      </div>
-
-      {/* Center: File Icon & Title */}
-      <div className="flex flex-col items-center text-center my-auto py-2">
-        <div className="w-14 h-14 rounded-2xl bg-[#F0FAF4] dark:bg-[#0D2218] border border-[#BBEAD0] dark:border-[#1E4933] shadow-xs flex items-center justify-center p-3 group-hover:scale-105 transition-transform mb-2.5">
-          {getDocumentFormatIcon(doc.fileType, doc.originalFileName, 'w-7 h-7')}
-        </div>
-
-        <h4 className="font-bold text-xs sm:text-sm text-[#0F2D1E] dark:text-[#E8FAF0] group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate w-full">
-          {doc.name}
-        </h4>
-
-        <span className="text-[11px] text-[#3D7858] dark:text-[#72B38F] font-mono truncate w-full block mt-0.5">
-          {doc.originalFileName}
-        </span>
-
-        <div className="flex items-center gap-2 mt-2 text-[10px] font-semibold text-[#1E7247] dark:text-[#5FBF8F]">
-          <span>{formatFileSize(doc.fileSize)}</span>
-          <span>•</span>
-          <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
-        </div>
-      </div>
-
-      {/* Bottom Action Dock */}
-      <div className="mt-3 pt-2.5 border-t border-[#D5F2E2] dark:border-[#193A29] flex items-center justify-around text-xs">
-        {/* AI Chat Button */}
-        <button
-          onClick={onChatAi}
-          className="p-1.5 text-brand-500 hover:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition-colors"
-          title="Chat & Ask AI about this document"
-        >
-          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-        </button>
-
-        {/* Live Preview Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onPreview();
-          }}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-emerald-600 dark:group-hover:text-emerald-400 rounded-lg transition-colors"
-          title="Live In-App Preview"
-        >
-          <Eye className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Copy Share Link */}
-        <button
-          onClick={onCopyLink}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-[#1E7247] dark:hover:text-[#5FBF8F] rounded-lg transition-colors relative"
-          title="Copy file link"
-        >
-          {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-          {isCopied && (
-            <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-white bg-emerald-600 text-[9px] px-1.5 py-0.5 rounded shadow whitespace-nowrap animate-in fade-in font-bold">
-              Copied!
-            </span>
-          )}
-        </button>
-
-        {/* Attach to Task */}
-        <button
-          onClick={onLinkTask}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-indigo-500 dark:hover:text-indigo-300 rounded-lg transition-colors"
-          title="Attach to task"
-        >
-          <Link2 className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Direct Download */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDownload();
-          }}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-emerald-600 rounded-lg transition-colors"
-          title="Download file"
-        >
-          <Download className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Delete */}
-        <button
-          onClick={onDelete}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-rose-500 rounded-lg transition-colors"
-          title="Delete document"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/* --- Compact Row Component for List View --- */
-const DocumentRow: React.FC<DocumentCardProps> = ({
-  doc,
-  isCopied,
-  onPreview,
-  onToggleFavorite,
-  onCopyLink,
-  onDownload,
-  onDelete,
-  onLinkTask,
-  onChatAi,
-}) => {
-  const isFav = Boolean(doc.isFavorite || doc.favorite);
-
-  return (
-    <div
-      onClick={onPreview}
-      className="p-3 sm:px-4 flex items-center justify-between gap-4 hover:bg-[#F3FBF7] dark:hover:bg-[#13261C]/50 transition-colors cursor-pointer group"
-    >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        <div className="w-8 h-8 rounded-xl bg-[#E8F7EF] dark:bg-[#13261C] border border-[#BBEAD0] dark:border-[#20372B] flex items-center justify-center flex-shrink-0">
-          {getDocumentFormatIcon(doc.fileType, doc.originalFileName, 'w-4 h-4')}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h4 className="font-bold text-xs sm:text-sm text-[#0F2D1E] dark:text-[#E8FAF0] group-hover:text-emerald-600 transition-colors truncate">
-              {doc.name}
-            </h4>
-            {isFav && <Star className="w-3 h-3 fill-amber-400 text-amber-400 flex-shrink-0" />}
-          </div>
-          <span className="text-[11px] text-[#3D7858] dark:text-[#72B38F] truncate block font-mono">
-            {doc.originalFileName}
-          </span>
-        </div>
-      </div>
-
-      {/* Center: Category & Size */}
-      <div className="hidden md:flex items-center gap-4">
-        {doc.categoryName && (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E8F7EF] dark:bg-[#13261C] text-[#1E7247] dark:text-[#5FBF8F] border border-[#BBEAD0] dark:border-[#20372B]">
-            {doc.categoryName}
-          </span>
-        )}
-
-        <span className="text-[11px] font-mono font-semibold text-[#0F2D1E] dark:text-[#E8FAF0]">
-          {formatFileSize(doc.fileSize)}
-        </span>
-
-        <span className="text-[11px] text-[#3D7858] dark:text-[#72B38F]">
-          {new Date(doc.createdAt).toLocaleDateString()}
-        </span>
-      </div>
-
-      {/* Right Actions */}
-      <div className="flex items-center gap-1">
-        <button
-          onClick={onChatAi}
-          className="p-1.5 text-brand-500 hover:text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition-colors"
-          title="Chat & Ask AI"
-        >
-          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-        </button>
-
-        <button
-          onClick={onToggleFavorite}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-amber-400 transition-colors"
-          title={isFav ? 'Unstar favorite' : 'Star as favorite'}
-        >
-          <Star className={clsx('w-3.5 h-3.5 transition-all', isFav && 'fill-amber-400 text-amber-400 scale-110')} />
-        </button>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onPreview();
-          }}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-emerald-600 rounded-lg transition-colors"
-          title="Live Preview"
-        >
-          <Eye className="w-3.5 h-3.5" />
-        </button>
-
-        <button
-          onClick={onCopyLink}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-[#1E7247] rounded-lg transition-colors relative"
-          title="Copy Link"
-        >
-          {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-        </button>
-
-        <button
-          onClick={onLinkTask}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-indigo-400 rounded-lg transition-colors"
-          title="Attach to task"
-        >
-          <Link2 className="w-3.5 h-3.5" />
-        </button>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDownload();
-          }}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-emerald-600 rounded-lg transition-colors"
-          title="Download"
-        >
-          <Download className="w-3.5 h-3.5" />
-        </button>
-
-        <button
-          onClick={onDelete}
-          className="p-1.5 text-[#3D7858] dark:text-[#72B38F] hover:text-rose-500 rounded-lg transition-colors"
-          title="Delete"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/* --- File Type Icon Selector --- */
-function getDocumentFormatIcon(fileType: string, fileName: string, sizeClass = 'w-6 h-6') {
-  const ext = (fileName || '').split('.').pop()?.toLowerCase() || '';
-  if (fileType.includes('pdf') || ext === 'pdf') {
-    return <FileText className={clsx(sizeClass, 'text-rose-500')} />;
-  }
-  if (fileType.includes('image') || ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'].includes(ext)) {
-    return <FileImage className={clsx(sizeClass, 'text-sky-500')} />;
-  }
-  if (fileType.includes('code') || ['json', 'sql', 'js', 'ts', 'java', 'py'].includes(ext)) {
-    return <FileCode className={clsx(sizeClass, 'text-emerald-500')} />;
-  }
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
-    return <FileArchive className={clsx(sizeClass, 'text-amber-500')} />;
-  }
-  if (['xls', 'xlsx', 'csv'].includes(ext)) {
-    return <FileSpreadsheet className={clsx(sizeClass, 'text-teal-500')} />;
-  }
-  return <File className={clsx(sizeClass, 'text-indigo-500')} />;
-}
