@@ -48,7 +48,16 @@ export const AppLayout: React.FC<AppLayoutProps> = () => {
     };
     refreshCategories();
     window.addEventListener('workspace-category-updated', refreshCategories);
-    return () => window.removeEventListener('workspace-category-updated', refreshCategories);
+    
+    // Keep Render backend awake while user is working (ping every 8 mins)
+    const keepAlive = setInterval(() => {
+      fetch('https://my-work-helper-cjri.onrender.com/api/health').catch(() => {});
+    }, 8 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener('workspace-category-updated', refreshCategories);
+      clearInterval(keepAlive);
+    };
   }, []);
 
   const handleOpenQuickAction = (type: 'task' | 'website' | 'note' | 'document' | 'drive') => {

@@ -60,7 +60,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 
     if (doc && isOpen) {
       setLoadingBlob(true);
-      documentService.getDownloadUrl(doc.id)
+      documentService.getDownloadUrl(doc.id, doc.downloadUrl)
         .then((url) => {
           setResolvedBlobUrl(url);
           const ext = (doc.originalFileName || doc.name).split('.').pop()?.toLowerCase() || '';

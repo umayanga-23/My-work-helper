@@ -9,6 +9,9 @@ export const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+// In-memory cache for resolved document blob URLs to enable instant re-opening
+const documentBlobCache = new Map<string, string>();
+
 export const documentService = {
   /**
    * Fetch all documents from the backend / Supabase
@@ -96,20 +99,43 @@ export const documentService = {
   /**
    * Get authenticated / public download & preview URL from Supabase or direct vault stream
    */
-  async getDownloadUrl(id: string): Promise<string> {
-    const response = await api.get(`/documents/${id}/download-url`);
-    const url: string = response.data?.data;
+  async getDownloadUrl(id: string, knownUrl?: string): Promise<string> {
+    if (documentBlobCache.has(id)) {
+      return documentBlobCache.get(id)!;
+    }
 
-    // If served via internal backend vault, fetch blob with Authorization header and create Object URL
-    if (url && url.startsWith('/api/')) {
-      const endpoint = url.replace(/^\/api/, '');
-      const blobRes = await api.get(endpoint, { responseType: 'blob' });
+    if (knownUrl && knownUrl.startsWith('https://')) {
+      return knownUrl;
+    }
+
+    try {
+      // Direct single request to fetch the file blob
+      const blobRes = await api.get(`/documents/${id}/file`, { responseType: 'blob' });
       const rawHeader = blobRes.headers['content-type'];
       const contentType = typeof rawHeader === 'string' ? rawHeader : 'application/pdf';
       const typedBlob = new Blob([blobRes.data], { type: contentType });
-      return URL.createObjectURL(typedBlob);
+      const objectUrl = URL.createObjectURL(typedBlob);
+      documentBlobCache.set(id, objectUrl);
+      return objectUrl;
+    } catch {
+      // Fallback: query download-url endpoint if direct file stream failed
+      const response = await api.get(`/documents/${id}/download-url`);
+      const url: string = response.data?.data;
+      if (url && url.startsWith('https://')) {
+        return url;
+      }
+      if (url && url.startsWith('/api/')) {
+        const endpoint = url.replace(/^\/api/, '');
+        const blobRes = await api.get(endpoint, { responseType: 'blob' });
+        const rawHeader = blobRes.headers['content-type'];
+        const contentType = typeof rawHeader === 'string' ? rawHeader : 'application/pdf';
+        const typedBlob = new Blob([blobRes.data], { type: contentType });
+        const objectUrl = URL.createObjectURL(typedBlob);
+        documentBlobCache.set(id, objectUrl);
+        return objectUrl;
+      }
+      return url;
     }
-    return url;
   },
 
   /**
