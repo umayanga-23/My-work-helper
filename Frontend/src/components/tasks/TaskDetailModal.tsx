@@ -182,6 +182,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const isOverdue = currentTask ? isTaskFactualOverdue(currentTask, todayStr) : false;
 
+  const formatDisplayTime = (timeStr?: string) => {
+    if (!timeStr) return '';
+    const clean = timeStr.slice(0, 5);
+    const parts = clean.split(':');
+    if (parts.length !== 2) return clean;
+    const hours = parseInt(parts[0], 10);
+    const minutes = parts[1];
+    if (isNaN(hours)) return clean;
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const h12 = hours % 12 === 0 ? 12 : hours % 12;
+    return `${h12}:${minutes} ${period}`;
+  };
+
   const priorityBadgeClass = (priority: TaskPriority) => {
     switch (priority) {
       case 'URGENT':
@@ -796,10 +809,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </span>
             </div>
 
-            {/* Due Date & Time */}
+            {/* Due Date & Time / Schedule */}
             <div>
               <span className="text-[10px] font-bold text-[#8A9890] dark:text-[#6F8A7A] uppercase tracking-wider block mb-1">
-                Due
+                {currentTask.startTime ? 'Schedule & Due' : 'Due Deadline'}
               </span>
               <span
                 className={clsx(
@@ -809,10 +822,15 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               >
                 <Clock className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">
-                  {currentTask.dueDate === todayStr ? 'Today' : currentTask.dueDate || 'Flexible'}{' '}
-                  {currentTask.dueTime ? `(${currentTask.dueTime.slice(0, 5)})` : ''}
+                  {currentTask.dueDate === todayStr ? 'Today' : currentTask.dueDate || 'Flexible'}
+                  {currentTask.dueTime ? ` • ${formatDisplayTime(currentTask.dueTime)}` : ''}
                 </span>
               </span>
+              {currentTask.startTime && (
+                <span className="text-[10px] text-[#237A57] dark:text-[#6DD6A0] font-medium block mt-0.5 truncate">
+                  Starts {currentTask.startDate === todayStr ? 'Today' : currentTask.startDate || ''} at {formatDisplayTime(currentTask.startTime)}
+                </span>
+              )}
             </div>
 
             {/* Project */}
