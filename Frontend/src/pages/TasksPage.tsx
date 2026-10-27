@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckSquare,
@@ -679,6 +679,16 @@ export const TasksPage: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
   const todayStr = getLocalTodayStr();
+
+  // Smart-sorted categories: Most used in tasks first, followed by empty categories alphabetically
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const countA = tasks.filter((t) => t.categoryId === a.id).length;
+      const countB = tasks.filter((t) => t.categoryId === b.id).length;
+      if (countB !== countA) return countB - countA;
+      return a.name.localeCompare(b.name);
+    });
+  }, [categories, tasks]);
 
   const isTaskOverdue = (task: Task) => isTaskFactualOverdue(task, todayStr);
 
@@ -2006,11 +2016,14 @@ export const TasksPage: React.FC = () => {
                 className="px-3 py-1.5 bg-[#F3FBF7] dark:bg-[#13261C] border border-[#DCE9E1] dark:border-[#20372B] rounded-xl text-xs text-[#17211B] dark:text-[#EAF7EF] outline-none focus:border-[#5FBF8F] cursor-pointer"
               >
                 <option value="">All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
+                {sortedCategories.map((cat: Category) => {
+                  const count = tasks.filter((t) => t.categoryId === cat.id).length;
+                  return (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name} {count > 0 ? `(${count})` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>

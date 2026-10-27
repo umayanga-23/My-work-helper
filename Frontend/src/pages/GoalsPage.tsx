@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Target,
@@ -439,6 +439,16 @@ export const GoalsPage: React.FC = () => {
     }));
   };
 
+  // Smart-sorted categories: Most used in strategic goals first, followed by empty categories alphabetically
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const countA = tasks.filter((t) => isStrategicGoal(t) && t.categoryId === a.id).length;
+      const countB = tasks.filter((t) => isStrategicGoal(t) && t.categoryId === b.id).length;
+      if (countB !== countA) return countB - countA;
+      return a.name.localeCompare(b.name);
+    });
+  }, [categories, tasks]);
+
   // Filter only strategic goals (exclude daily tasks and nested child subtasks)
   const rootGoals = tasks.filter((t: Task) => isStrategicGoal(t));
 
@@ -590,11 +600,14 @@ export const GoalsPage: React.FC = () => {
             className="px-3 py-1.5 rounded-xl text-xs bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] text-[#17211B] dark:text-[#EAF7EF] focus:outline-none focus:border-purple-500 transition-colors cursor-pointer"
           >
             <option value="">All Categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            {sortedCategories.map((c: Category) => {
+              const count = tasks.filter((t) => isStrategicGoal(t) && t.categoryId === c.id).length;
+              return (
+                <option key={c.id} value={c.id}>
+                  {c.name} {count > 0 ? `(${count})` : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>

@@ -94,13 +94,25 @@ export const NotesPage: React.FC = () => {
       .slice(0, 8);
   }, [notes]);
 
+  // Smart-sorted categories: Most used (highest item count) first, followed by empty categories alphabetically
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const countA = notes.filter((n) => n.categoryId === a.id || (n.categoryName && n.categoryName.toLowerCase() === a.name.toLowerCase())).length;
+      const countB = notes.filter((n) => n.categoryId === b.id || (n.categoryName && n.categoryName.toLowerCase() === b.name.toLowerCase())).length;
+      if (countB !== countA) {
+        return countB - countA;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [categories, notes]);
+
   // Grouped notes by category for Sections View
   const categorySections = useMemo(() => {
     const sections: { id?: string; name: string; color?: string; items: Note[] }[] = [];
     const assignedNoteIds = new Set<string>();
 
-    // 1. Map known categories
-    categories.forEach((cat) => {
+    // 1. Map known categories in smart sorted order
+    sortedCategories.forEach((cat) => {
       const items = notes.filter((n) => {
         if (n.categoryId === cat.id || (n.categoryName && n.categoryName.toLowerCase() === cat.name.toLowerCase())) {
           assignedNoteIds.add(n.id);
@@ -328,7 +340,7 @@ export const NotesPage: React.FC = () => {
           </span>
         </button>
 
-        {categories.map((cat) => {
+        {sortedCategories.map((cat) => {
           const count = notes.filter((n) => n.categoryId === cat.id || n.categoryName === cat.name).length;
           const isSelected = selectedCategory === cat.id;
           return (

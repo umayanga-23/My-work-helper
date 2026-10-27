@@ -235,13 +235,25 @@ export const WebsitesPage: React.FC = () => {
     setModalOpen(true);
   };
 
+  // Smart-sorted categories: Most used (highest item count) first, followed by empty categories alphabetically
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const countA = websites.filter((w) => w.categoryId === a.id || w.categoryName === a.name).length;
+      const countB = websites.filter((w) => w.categoryId === b.id || w.categoryName === b.name).length;
+      if (countB !== countA) {
+        return countB - countA; // Categories with more items first
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [categories, websites]);
+
   // Grouped websites by category
   const categorySections = useMemo(() => {
     // Collect all unique categories that have bookmarks or exist in `categories`
     const sections: { id?: string; name: string; color?: string; items: Website[] }[] = [];
 
-    // First map all known categories
-    categories.forEach((cat) => {
+    // First map all known categories using smart sorted order
+    sortedCategories.forEach((cat) => {
       const items = websites.filter((w) => w.categoryId === cat.id || w.categoryName === cat.name);
       // If a category filter is active, only show that category
       if (!selectedCategory || selectedCategory === cat.id) {
@@ -417,7 +429,7 @@ export const WebsitesPage: React.FC = () => {
           </span>
         </button>
 
-        {categories.map((cat) => {
+        {sortedCategories.map((cat) => {
           const count = websites.filter((w) => w.categoryId === cat.id || w.categoryName === cat.name).length;
           const isSelected = selectedCategory === cat.id;
           return (

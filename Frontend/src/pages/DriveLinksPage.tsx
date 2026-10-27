@@ -183,12 +183,24 @@ export const DriveLinksPage: React.FC = () => {
     });
   }, [driveLinks, platformFilter]);
 
+  // Smart-sorted categories: Most used (highest item count) first, followed by empty categories alphabetically
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const countA = driveLinks.filter((d) => d.categoryId === a.id || d.categoryName === a.name).length;
+      const countB = driveLinks.filter((d) => d.categoryId === b.id || d.categoryName === b.name).length;
+      if (countB !== countA) {
+        return countB - countA;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [categories, driveLinks]);
+
   // Grouped by Category for Sections View
   const categorySections = useMemo(() => {
     const sections: { id?: string; name: string; color?: string; items: DriveLink[] }[] = [];
 
-    // Map known categories
-    categories.forEach((cat) => {
+    // Map known categories in smart sorted order
+    sortedCategories.forEach((cat) => {
       const items = filteredLinks.filter((d) => d.categoryId === cat.id || d.categoryName === cat.name);
       if (!selectedCategory || selectedCategory === cat.id) {
         sections.push({
@@ -321,7 +333,7 @@ export const DriveLinksPage: React.FC = () => {
           </span>
         </button>
 
-        {categories.map((cat) => {
+        {sortedCategories.map((cat) => {
           const count = driveLinks.filter((d) => d.categoryId === cat.id || d.categoryName === cat.name).length;
           const isSelected = selectedCategory === cat.id;
           return (

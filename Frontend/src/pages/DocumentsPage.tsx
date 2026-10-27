@@ -323,6 +323,22 @@ export const DocumentsPage: React.FC = () => {
     return documents.filter((d) => !d.folderId);
   }, [documents, currentFolder, search]);
 
+  // Smart-sorted categories: Most used (highest item count of folders + docs) first
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const countA =
+        folders.filter((f) => f.categoryId === a.id).length +
+        documents.filter((d) => d.categoryId === a.id).length;
+      const countB =
+        folders.filter((f) => f.categoryId === b.id).length +
+        documents.filter((d) => d.categoryId === b.id).length;
+      if (countB !== countA) {
+        return countB - countA;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [categories, folders, documents]);
+
   // Filter items by selected Category
   const filteredFolders = useMemo(() => {
     if (!selectedCategoryId) return folders;
@@ -448,7 +464,7 @@ export const DocumentsPage: React.FC = () => {
             </span>
           </button>
 
-          {categories.map((cat) => {
+          {sortedCategories.map((cat) => {
             const isSelected = selectedCategoryId === cat.id;
             const catItemCount =
               folders.filter((f) => f.categoryId === cat.id).length +
