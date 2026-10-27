@@ -310,6 +310,19 @@ export const DocumentsPage: React.FC = () => {
     }
   };
 
+  // Filter items by Folder location (Only show root documents in root view, folder documents inside folder)
+  const folderFilteredDocuments = useMemo(() => {
+    // When actively searching across the vault, show all matched documents
+    if (search && search.trim().length > 0) {
+      return documents;
+    }
+    if (currentFolder) {
+      return documents.filter((d) => d.folderId === currentFolder.id);
+    }
+    // Root level: ONLY show documents that are not placed inside any subfolder
+    return documents.filter((d) => !d.folderId);
+  }, [documents, currentFolder, search]);
+
   // Filter items by selected Category
   const filteredFolders = useMemo(() => {
     if (!selectedCategoryId) return folders;
@@ -317,9 +330,9 @@ export const DocumentsPage: React.FC = () => {
   }, [folders, selectedCategoryId]);
 
   const filteredDocuments = useMemo(() => {
-    if (!selectedCategoryId) return documents;
-    return documents.filter((d) => d.categoryId === selectedCategoryId);
-  }, [documents, selectedCategoryId]);
+    if (!selectedCategoryId) return folderFilteredDocuments;
+    return folderFilteredDocuments.filter((d) => d.categoryId === selectedCategoryId);
+  }, [folderFilteredDocuments, selectedCategoryId]);
 
   // Sorted Folders & Documents (Folders ALWAYS FIRST!)
   const sortedFolders = useMemo(() => {
