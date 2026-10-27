@@ -508,7 +508,11 @@ export const TasksPage: React.FC = () => {
     }
   };
 
-  const handleSaveTask = async (taskData: Partial<Task>, pendingResources?: PendingTaskResource[]) => {
+  const handleSaveTask = async (
+    taskData: Partial<Task>,
+    pendingResources?: PendingTaskResource[],
+    pendingSubtasks?: string[]
+  ) => {
     try {
       if (editingTask) {
         // Edit mode
@@ -544,6 +548,16 @@ export const TasksPage: React.FC = () => {
             }
           }
         }
+        if (pendingSubtasks && pendingSubtasks.length > 0) {
+          for (const subTitle of pendingSubtasks) {
+            if (subTitle.trim()) {
+              await taskService.createSubtask(editingTask.id, {
+                title: subTitle.trim(),
+                dueDate: editingTask.dueDate || todayStr,
+              }).catch(() => null);
+            }
+          }
+        }
         const refreshed = await taskService.getTaskById(editingTask.id).catch(() => updated);
         setTasks((prev) =>
           prev.map((t) => (t.id === editingTask.id ? (refreshed as Task) : t))
@@ -572,6 +586,16 @@ export const TasksPage: React.FC = () => {
             }
             if (resId) {
               await taskService.addResource(created.id, res.resourceType, resId).catch(() => null);
+            }
+          }
+        }
+        if (pendingSubtasks && pendingSubtasks.length > 0) {
+          for (const subTitle of pendingSubtasks) {
+            if (subTitle.trim()) {
+              await taskService.createSubtask(created.id, {
+                title: subTitle.trim(),
+                dueDate: created.dueDate || todayStr,
+              }).catch(() => null);
             }
           }
         }
@@ -1232,17 +1256,58 @@ export const TasksPage: React.FC = () => {
 
               {/* Subtasks Accordion Button & Progress Bar (Available for all tasks) */}
               <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSubtasksExpand(task.id);
+                  }}
+                  className={clsx(
+                    'px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all duration-200 shadow-2xs select-none active:scale-95',
+                    isExpanded
+                      ? isStrategicGoal(task)
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-purple-500/25 shadow-xs'
+                        : 'bg-[#237A57] text-white border-[#237A57] shadow-[#237A57]/25 shadow-xs'
+                      : isStrategicGoal(task)
+                        ? 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/25 hover:border-purple-500/40 text-purple-700 dark:text-purple-300'
+                        : 'bg-[#E8F7EF]/80 hover:bg-[#E8F7EF] dark:bg-[#13261C] dark:hover:bg-[#1a3325] border-[#5FBF8F]/30 hover:border-[#5FBF8F]/60 text-[#237A57] dark:text-[#6DD6A0]'
+                  )}
+                  title={isExpanded ? 'Collapse subtasks drawer' : 'View and manage subtasks'}
+                >
+                  <ListTodo className="w-4 h-4 shrink-0" />
+                  {subtaskCount > 0 ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className={clsx(
+                        'px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold tracking-tight',
+                        isExpanded
+                          ? 'bg-white/25 text-white'
+                          : 'bg-[#5FBF8F]/20 dark:bg-[#5FBF8F]/20 text-[#237A57] dark:text-[#6DD6A0]'
+                      )}>
+                        {completedSubtasks}/{subtaskCount}
+                      </span>
+                      <span>Subtasks</span>
+                    </span>
+                  ) : (
+                    <span>+ Subtasks</span>
+                  )}
+                  {isExpanded ? (
+                    <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  )}
+                </button>
+
                 {subtaskCount > 0 && (
                   <div
                     className={clsx(
-                      'flex items-center gap-1.5 px-2 py-0.5 rounded-full border',
+                      'flex items-center gap-2 px-2.5 py-1.5 rounded-xl border shadow-2xs',
                       isStrategicGoal(task)
                         ? 'bg-purple-500/10 border-purple-500/20 text-purple-700 dark:text-purple-300'
                         : 'bg-[#E8F7EF] dark:bg-[#13261C] border-[#5FBF8F]/30 text-[#237A57] dark:text-[#6DD6A0]'
                     )}
                     title={`Progress: ${completedSubtasks} of ${subtaskCount} subtasks completed`}
                   >
-                    <div className="w-12 h-1.5 bg-[#DCE9E1] dark:bg-[#20372B] rounded-full overflow-hidden">
+                    <div className="w-14 h-2 bg-[#DCE9E1] dark:bg-[#20372B] rounded-full overflow-hidden">
                       <div
                         className={clsx(
                           'h-full rounded-full transition-all duration-300',
@@ -1251,7 +1316,7 @@ export const TasksPage: React.FC = () => {
                         style={{ width: `${Math.round((completedSubtasks / subtaskCount) * 100)}%` }}
                       />
                     </div>
-                    <span className="text-[10px] font-bold font-mono">
+                    <span className="text-[11px] font-bold font-mono">
                       {Math.round((completedSubtasks / subtaskCount) * 100)}%
                     </span>
                   </div>
@@ -1261,28 +1326,12 @@ export const TasksPage: React.FC = () => {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleSubtasksExpand(task.id);
-                  }}
-                  className={clsx(
-                    'text-xs font-semibold hover:underline flex items-center gap-1 cursor-pointer transition-colors',
-                    isStrategicGoal(task) ? 'text-purple-600 dark:text-purple-400' : 'text-[#237A57] dark:text-[#6DD6A0]'
-                  )}
-                >
-                  <ListTodo className="w-3.5 h-3.5" />
-                  <span>{subtaskCount > 0 ? `${completedSubtasks}/${subtaskCount} Subtasks` : '+ Subtasks'}</span>
-                  {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
                     setDecomposeTask(task);
                   }}
-                  className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-1 cursor-pointer border border-purple-500/20"
+                  className="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-1.5 cursor-pointer border border-purple-500/20 shadow-2xs"
                   title="AI Auto-Break Down into Subtasks"
                 >
-                  <Sparkles className="w-3 h-3 text-purple-500" /> AI Breakdown
+                  <Sparkles className="w-3.5 h-3.5 text-purple-500" /> AI Breakdown
                 </button>
               </div>
             </div>

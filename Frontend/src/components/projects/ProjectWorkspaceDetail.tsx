@@ -123,7 +123,11 @@ export const ProjectWorkspaceDetail: React.FC<ProjectWorkspaceDetailProps> = ({
     }
   };
 
-  const handleSaveProjectTask = async (taskData: Partial<Task>, pendingResources?: any[]) => {
+  const handleSaveProjectTask = async (
+    taskData: Partial<Task>,
+    pendingResources?: any[],
+    pendingSubtasks?: string[]
+  ) => {
     try {
       let savedTask: Task;
       if (taskData.id) {
@@ -156,6 +160,17 @@ export const ProjectWorkspaceDetail: React.FC<ProjectWorkspaceDetailProps> = ({
           }
           if (resId) {
             await taskService.addResource(savedTask.id, res.resourceType, resId).catch(() => null);
+          }
+        }
+      }
+
+      if (pendingSubtasks && pendingSubtasks.length > 0) {
+        for (const subTitle of pendingSubtasks) {
+          if (subTitle.trim()) {
+            await taskService.createSubtask(savedTask.id, {
+              title: subTitle.trim(),
+              dueDate: savedTask.dueDate,
+            }).catch(() => null);
           }
         }
       }

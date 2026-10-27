@@ -257,17 +257,43 @@ export const HomeDashboard: React.FC = () => {
     }
   };
 
-  const handleSaveTask = async (taskData: Partial<Task>) => {
+  const handleSaveTask = async (
+    taskData: Partial<Task>,
+    _pendingResources?: any,
+    pendingSubtasks?: string[]
+  ) => {
     if (editingTask) {
       const updated = await taskService.updateTask(editingTask.id, taskData);
-      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      if (pendingSubtasks && pendingSubtasks.length > 0) {
+        for (const subTitle of pendingSubtasks) {
+          if (subTitle.trim()) {
+            await taskService.createSubtask(editingTask.id, {
+              title: subTitle.trim(),
+              dueDate: editingTask.dueDate || getLocalDateString(),
+            }).catch(() => null);
+          }
+        }
+      }
+      const refreshed = await taskService.getTaskById(editingTask.id).catch(() => updated);
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? refreshed : t)));
       if (detailTask && detailTask.id === updated.id) {
-        setDetailTask(updated);
+        setDetailTask(refreshed);
       }
       setEditingTask(null);
     } else {
       const created = await taskService.createTask(taskData);
-      setTasks((prev) => [created, ...prev]);
+      if (pendingSubtasks && pendingSubtasks.length > 0) {
+        for (const subTitle of pendingSubtasks) {
+          if (subTitle.trim()) {
+            await taskService.createSubtask(created.id, {
+              title: subTitle.trim(),
+              dueDate: created.dueDate || getLocalDateString(),
+            }).catch(() => null);
+          }
+        }
+      }
+      const refreshed = await taskService.getTaskById(created.id).catch(() => created);
+      setTasks((prev) => [refreshed, ...prev]);
     }
   };
 

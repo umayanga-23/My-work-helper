@@ -18,6 +18,7 @@ import {
   Lock,
   CheckSquare,
   Zap,
+  ListTodo,
 } from 'lucide-react';
 import type { Task, Category, Project } from '../types';
 import { taskService } from '../services/taskService';
@@ -340,7 +341,11 @@ export const GoalsPage: React.FC = () => {
     }
   };
 
-  const handleSaveTask = async (taskData: Partial<Task>, pendingResources?: PendingTaskResource[]) => {
+  const handleSaveTask = async (
+    taskData: Partial<Task>,
+    pendingResources?: PendingTaskResource[],
+    pendingSubtasks?: string[]
+  ) => {
     try {
       if (editingTask) {
         const updated = await taskService.updateTask(editingTask.id, taskData);
@@ -364,6 +369,16 @@ export const GoalsPage: React.FC = () => {
             }
             if (resId) {
               await taskService.addResource(editingTask.id, res.resourceType, resId).catch(() => null);
+            }
+          }
+        }
+        if (pendingSubtasks && pendingSubtasks.length > 0) {
+          for (const subTitle of pendingSubtasks) {
+            if (subTitle.trim()) {
+              await taskService.createSubtask(editingTask.id, {
+                title: subTitle.trim(),
+                dueDate: editingTask.dueDate || todayStr,
+              }).catch(() => null);
             }
           }
         }
@@ -394,6 +409,16 @@ export const GoalsPage: React.FC = () => {
             }
             if (resId) {
               await taskService.addResource(created.id, res.resourceType, resId).catch(() => null);
+            }
+          }
+        }
+        if (pendingSubtasks && pendingSubtasks.length > 0) {
+          for (const subTitle of pendingSubtasks) {
+            if (subTitle.trim()) {
+              await taskService.createSubtask(created.id, {
+                title: subTitle.trim(),
+                dueDate: created.dueDate || todayStr,
+              }).catch(() => null);
             }
           }
         }
@@ -826,12 +851,19 @@ export const GoalsPage: React.FC = () => {
                         </div>
 
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleSubtasksExpand(task.id);
                           }}
-                          className="px-2 py-1 rounded-lg text-[11px] font-semibold bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-300 hover:bg-purple-100 flex items-center gap-1 cursor-pointer transition-colors"
+                          className={clsx(
+                            'px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all duration-200 shadow-2xs select-none active:scale-95',
+                            isExpanded
+                              ? 'bg-purple-600 text-white border-purple-600 shadow-purple-500/25 shadow-xs'
+                              : 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/25 hover:border-purple-500/40 text-purple-700 dark:text-purple-300'
+                          )}
                         >
+                          <ListTodo className="w-3.5 h-3.5" />
                           <span>{subtaskCount} Steps</span>
                           {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </button>
