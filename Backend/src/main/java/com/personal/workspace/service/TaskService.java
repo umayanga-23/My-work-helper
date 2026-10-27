@@ -124,8 +124,11 @@ public class TaskService {
         task.setDescription(request.getDescription());
         task.setStatus(request.getStatus() != null ? request.getStatus() : TaskStatus.TODO);
         task.setPriority(request.getPriority() != null ? request.getPriority() : TaskPriority.MEDIUM);
-        task.setDueDate(request.getDueDate() != null ? request.getDueDate() : LocalDate.now());
-        task.setDueTime(request.getDueTime());
+        LocalDate effectiveStartDate = request.getStartDate() != null ? request.getStartDate() : (request.getDueDate() != null ? request.getDueDate() : LocalDate.now());
+        task.setStartDate(effectiveStartDate);
+        task.setStartTime(request.getStartTime());
+        task.setDueDate(request.getDueDate() != null ? request.getDueDate() : effectiveStartDate);
+        task.setDueTime(request.getDueTime() != null ? request.getDueTime() : LocalTime.of(23, 59));
         task.setCategoryId(request.getCategoryId());
         task.setProjectId(request.getProjectId());
         if (request.getParentTaskId() != null) {
@@ -199,8 +202,11 @@ public class TaskService {
             }
         }
         if (request.getPriority() != null) task.setPriority(request.getPriority());
+        if (request.getStartDate() != null) task.setStartDate(request.getStartDate());
+        if (request.getStartTime() != null) task.setStartTime(request.getStartTime());
         if (request.getDueDate() != null) task.setDueDate(request.getDueDate());
-        task.setDueTime(request.getDueTime());
+        task.setDueTime(request.getDueTime() != null ? request.getDueTime() : task.getDueTime());
+        if (request.getEstimatedDuration() != null) task.setEstimatedDuration(request.getEstimatedDuration());
         task.setCategoryId(request.getCategoryId());
         task.setProjectId(request.getProjectId());
         if (request.getParentTaskId() != null) {
@@ -784,6 +790,8 @@ public class TaskService {
         dto.setPriority(entity.getPriority());
         dto.setDueDate(entity.getDueDate());
         dto.setDueTime(entity.getDueTime());
+        dto.setStartDate(entity.getStartDate());
+        dto.setStartTime(entity.getStartTime());
         dto.setCompletedAt(entity.getCompletedAt());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
@@ -849,6 +857,8 @@ public class TaskService {
                 subDto.setPriority(sub.getPriority());
                 subDto.setDueDate(sub.getDueDate());
                 subDto.setDueTime(sub.getDueTime());
+                subDto.setStartDate(sub.getStartDate());
+                subDto.setStartTime(sub.getStartTime());
                 subDto.setTaskKey(sub.getTaskKey());
                 subDto.setCompletedAt(sub.getCompletedAt());
                 subDto.setCreatedAt(sub.getCreatedAt());

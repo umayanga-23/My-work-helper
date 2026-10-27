@@ -51,6 +51,12 @@ public class TaskEntity {
     @Column(name = "due_time")
     private LocalTime dueTime;
 
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
+    @Column(name = "start_time")
+    private LocalTime startTime;
+
     @Column(name = "completed_at")
     private ZonedDateTime completedAt;
 
@@ -185,6 +191,22 @@ public class TaskEntity {
 
     public void setDueTime(LocalTime dueTime) {
         this.dueTime = dueTime;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+
+    public LocalTime getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(LocalTime startTime) {
+        this.startTime = startTime;
     }
 
     public ZonedDateTime getCompletedAt() {

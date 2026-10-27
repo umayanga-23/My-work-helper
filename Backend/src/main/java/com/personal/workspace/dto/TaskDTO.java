@@ -19,6 +19,8 @@ public class TaskDTO {
     private TaskPriority priority;
     private LocalDate dueDate;
     private LocalTime dueTime;
+    private LocalDate startDate;
+    private LocalTime startTime;
     private ZonedDateTime completedAt;
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;
@@ -77,6 +79,12 @@ public class TaskDTO {
 
     public LocalTime getDueTime() { return dueTime; }
     public void setDueTime(LocalTime dueTime) { this.dueTime = dueTime; }
+
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+
+    public LocalTime getStartTime() { return startTime; }
+    public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
 
     public ZonedDateTime getCompletedAt() { return completedAt; }
     public void setCompletedAt(ZonedDateTime completedAt) { this.completedAt = completedAt; }

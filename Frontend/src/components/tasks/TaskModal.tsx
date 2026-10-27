@@ -70,13 +70,41 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
   const todayStr = getTodayStr();
 
-  const getDefaultDueTime = () => {
+  const getDateStrAhead = (daysAhead: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysAhead);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const getDefaultStartTime = (daysAhead: number = 0) => {
+    // If scheduling for future/tomorrow, user's morning starts at 5:00 AM
+    if (daysAhead > 0) {
+      return '05:00';
+    }
     const now = new Date();
-    const nextHour = now.getHours() + 1;
-    if (nextHour >= 23) {
+    const curH = now.getHours();
+    if (curH < 5) return '05:00';
+    const nextH = Math.min(23, curH + 1);
+    return `${String(nextH).padStart(2, '0')}:00`;
+  };
+
+  const calculateDueTimeFromStart = (startT: string, durationMinutes?: number): string => {
+    if (!durationMinutes || durationMinutes <= 0 || !startT) {
       return '23:59';
     }
-    return `${String(nextHour).padStart(2, '0')}:00`;
+    const parts = startT.split(':');
+    if (parts.length < 2) return '23:59';
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return '23:59';
+    const totalMins = h * 60 + m + durationMinutes;
+    if (totalMins >= 24 * 60) return '23:59';
+    const endH = Math.floor(totalMins / 60);
+    const endM = totalMins % 60;
+    return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
   };
 
   const [taskType, setTaskType] = useState<'TODAY' | 'EPIC'>('TODAY');
@@ -84,8 +112,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [description, setDescription] = useState(initialTask?.description || '');
   const [priority, setPriority] = useState<TaskPriority>(initialTask?.priority || 'MEDIUM');
   const [status, setStatus] = useState<TaskStatus>(initialTask?.status || 'TODO');
+  const [startDate, setStartDate] = useState(initialTask?.startDate || todayStr);
+  const [startTime, setStartTime] = useState(initialTask?.startTime || getDefaultStartTime(0));
   const [dueDate, setDueDate] = useState(initialTask?.dueDate || todayStr);
-  const [dueTime, setDueTime] = useState(initialTask?.dueTime || getDefaultDueTime());
+  const [dueTime, setDueTime] = useState(initialTask?.dueTime || '23:59');
   const [estimatedDuration, setEstimatedDuration] = useState<number | undefined>(initialTask?.estimatedDuration);
   const [categoryId, setCategoryId] = useState(initialTask?.categoryId || '');
   const [projectId, setProjectId] = useState(initialTask?.projectId || defaultProjectId || '');
@@ -118,25 +148,19 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setDescription(initialTask?.description || '');
       setPriority(initialTask?.priority || 'MEDIUM');
       setStatus(initialTask?.status || 'TODO');
-      
-      if (initialTask?.dueDate) {
-        setDueDate(initialTask.dueDate);
-      } else if (defaultDueDate) {
-        setDueDate(defaultDueDate);
-        setTaskType(defaultDueDate === todayStr ? 'TODAY' : 'EPIC');
-      } else if (initialType === 'TODAY') {
-        setDueDate(todayStr);
-      } else {
-        const nextWeek = new Date();
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        const y = nextWeek.getFullYear();
-        const m = String(nextWeek.getMonth() + 1).padStart(2, '0');
-        const d = String(nextWeek.getDate()).padStart(2, '0');
-        setDueDate(`${y}-${m}-${d}`);
-      }
 
-      setDueTime(initialTask?.dueTime || getDefaultDueTime());
-      setEstimatedDuration(initialTask?.estimatedDuration);
+      const initialStartD = initialTask?.startDate || initialTask?.dueDate || defaultDueDate || todayStr;
+      const initialDueD = initialTask?.dueDate || defaultDueDate || todayStr;
+      const isFuture = initialStartD > todayStr;
+      const initialStartT = initialTask?.startTime || getDefaultStartTime(isFuture ? 1 : 0);
+      const initialDuration = initialTask?.estimatedDuration;
+      const initialDueT = initialTask?.dueTime || (initialDuration ? calculateDueTimeFromStart(initialStartT, initialDuration) : '23:59');
+
+      setStartDate(initialStartD);
+      setStartTime(initialStartT);
+      setDueDate(initialDueD);
+      setDueTime(initialDueT);
+      setEstimatedDuration(initialDuration);
       setCategoryId(initialTask?.categoryId || '');
       setProjectId(initialTask?.projectId || defaultProjectId || '');
       if (initialTask?.resources && initialTask.resources.length > 0) {
@@ -180,26 +204,55 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   if (!isOpen) return null;
 
   const setQuickDate = (daysAhead: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + daysAhead);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    setDueDate(`${y}-${m}-${day}`);
+    const dStr = getDateStrAhead(daysAhead);
+    setStartDate(dStr);
+    setDueDate(dStr);
+    const newStartT = getDefaultStartTime(daysAhead);
+    setStartTime(newStartT);
+    const newDueT = estimatedDuration && estimatedDuration > 0
+      ? calculateDueTimeFromStart(newStartT, estimatedDuration)
+      : '23:59';
+    setDueTime(newDueT);
+  };
+
+  const handleStartTimeChange = (newStartTime: string) => {
+    setStartTime(newStartTime);
+    if (estimatedDuration && estimatedDuration > 0) {
+      setDueTime(calculateDueTimeFromStart(newStartTime, estimatedDuration));
+    }
+  };
+
+  const handleDurationChange = (mins?: number) => {
+    const nextVal = estimatedDuration === mins ? undefined : mins;
+    setEstimatedDuration(nextVal);
+    if (nextVal && nextVal > 0 && startTime) {
+      setDueTime(calculateDueTimeFromStart(startTime, nextVal));
+    } else {
+      setDueTime('23:59');
+    }
+  };
+
+  const handleCustomDurationChange = (valStr: string) => {
+    const num = valStr ? Number(valStr) : undefined;
+    setEstimatedDuration(num);
+    if (num && num > 0 && startTime) {
+      setDueTime(calculateDueTimeFromStart(startTime, num));
+    } else {
+      setDueTime('23:59');
+    }
   };
 
   const handleTypeChange = (type: 'TODAY' | 'EPIC') => {
     setTaskType(type);
     if (type === 'TODAY') {
+      setStartDate(todayStr);
       setDueDate(todayStr);
+      setStartTime(getDefaultStartTime(0));
+      setDueTime(estimatedDuration ? calculateDueTimeFromStart(getDefaultStartTime(0), estimatedDuration) : '23:59');
     } else {
       if (dueDate === todayStr) {
-        const nextWeek = new Date();
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        const y = nextWeek.getFullYear();
-        const m = String(nextWeek.getMonth() + 1).padStart(2, '0');
-        const d = String(nextWeek.getDate()).padStart(2, '0');
-        setDueDate(`${y}-${m}-${d}`);
+        const nextWeek = getDateStrAhead(7);
+        setDueDate(nextWeek);
       }
     }
   };
@@ -253,8 +306,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         description: description.trim(),
         priority,
         status,
+        startDate: startDate || undefined,
+        startTime: startTime || undefined,
         dueDate: dueDate || undefined,
-        dueTime: dueTime || undefined,
+        dueTime: dueTime || '23:59',
         estimatedDuration: estimatedDuration ? Number(estimatedDuration) : undefined,
         categoryId: categoryId || undefined,
         projectId: projectId || undefined,
@@ -444,81 +499,124 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
-          {/* Date & Time Row with Quick Buttons */}
-          <div className="space-y-2">
+          {/* Date, Time & Duration Scheduling Panel */}
+          <div className="p-3.5 bg-[#F3FBF7]/60 dark:bg-[#13261C]/50 border border-[#DCE9E1] dark:border-[#20372B] rounded-2xl space-y-3.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-[#17211B] dark:text-[#EAF7EF] uppercase tracking-wider flex items-center gap-1.5">
+              <label className="text-xs font-bold text-[#17211B] dark:text-[#EAF7EF] uppercase tracking-wider flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-[#5FBF8F]" />
-                Due Date & Time
+                Schedule & Deadlines
               </label>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setQuickDate(0)}
-                  className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] hover:bg-[#5FBF8F] hover:text-white transition-all cursor-pointer"
+                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] hover:bg-[#5FBF8F] hover:text-white transition-all cursor-pointer shadow-2xs"
                 >
                   Today
                 </button>
                 <button
                   type="button"
                   onClick={() => setQuickDate(1)}
-                  className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] hover:bg-[#5FBF8F] hover:text-white transition-all cursor-pointer"
+                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] hover:bg-[#5FBF8F] hover:text-white transition-all cursor-pointer shadow-2xs"
                 >
-                  Tomorrow
+                  Tomorrow (5 AM)
                 </button>
                 <button
                   type="button"
                   onClick={() => setQuickDate(7)}
-                  className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] hover:bg-[#5FBF8F] hover:text-white transition-all cursor-pointer"
+                  className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] hover:bg-[#5FBF8F] hover:text-white transition-all cursor-pointer shadow-2xs"
                 >
                   +1 Week
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#F3FBF7] dark:bg-[#13261C] border border-[#DCE9E1] dark:border-[#20372B] rounded-xl text-[#17211B] dark:text-[#EAF7EF] text-sm focus:outline-none focus:border-[#5FBF8F]"
-                />
+            {/* Dual Grid: Start Date/Time & Due Date/Time */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Start Schedule */}
+              <div className="p-2.5 bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] rounded-xl space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-[#237A57] dark:text-[#6DD6A0] uppercase tracking-wide flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-[#5FBF8F]" />
+                    Start Time
+                  </span>
+                  <span className="text-[10px] text-[#8A9890]">Day starts 05:00 AM</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      const newStartD = e.target.value;
+                      setStartDate(newStartD);
+                      if (!dueDate || dueDate < newStartD) {
+                        setDueDate(newStartD);
+                      }
+                    }}
+                    className="w-full px-2.5 py-1.5 bg-[#F3FBF7] dark:bg-[#13261C] border border-[#DCE9E1] dark:border-[#20372B] rounded-lg text-[#17211B] dark:text-[#EAF7EF] text-xs focus:outline-none focus:border-[#5FBF8F]"
+                  />
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => handleStartTimeChange(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-[#F3FBF7] dark:bg-[#13261C] border border-[#DCE9E1] dark:border-[#20372B] rounded-lg text-[#17211B] dark:text-[#EAF7EF] text-xs focus:outline-none focus:border-[#5FBF8F]"
+                  />
+                </div>
               </div>
-              <div className="relative">
-                <input
-                  type="time"
-                  value={dueTime}
-                  onChange={(e) => setDueTime(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#F3FBF7] dark:bg-[#13261C] border border-[#DCE9E1] dark:border-[#20372B] rounded-xl text-[#17211B] dark:text-[#EAF7EF] text-sm focus:outline-none focus:border-[#5FBF8F]"
-                />
+
+              {/* Due Deadline */}
+              <div className="p-2.5 bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] rounded-xl space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-[#17211B] dark:text-[#EAF7EF] uppercase tracking-wide flex items-center gap-1">
+                    <Target className="w-3 h-3 text-[#5FBF8F]" />
+                    Due Deadline
+                  </span>
+                  <span className="text-[10px] text-[#8A9890]">Default 23:59 PM</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-[#F3FBF7] dark:bg-[#13261C] border border-[#DCE9E1] dark:border-[#20372B] rounded-lg text-[#17211B] dark:text-[#EAF7EF] text-xs focus:outline-none focus:border-[#5FBF8F]"
+                  />
+                  <input
+                    type="time"
+                    value={dueTime}
+                    onChange={(e) => setDueTime(e.target.value)}
+                    className="w-full px-2.5 py-1.5 bg-[#F3FBF7] dark:bg-[#13261C] border border-[#DCE9E1] dark:border-[#20372B] rounded-lg text-[#17211B] dark:text-[#EAF7EF] text-xs focus:outline-none focus:border-[#5FBF8F]"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Estimated Duration */}
-            <div className="pt-2">
-              <label className="text-[11px] font-semibold text-[#8A9890] dark:text-[#6F8A7A] uppercase tracking-wider flex items-center justify-between mb-1.5">
-                <span className="flex items-center gap-1">
+            {/* Estimated Duration & Auto-Adjust Badge */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-[#8A9890] dark:text-[#6F8A7A] uppercase tracking-wider flex items-center gap-1">
                   <Clock className="w-3 h-3 text-[#5FBF8F]" />
                   Estimated Duration
-                </span>
+                </label>
                 {estimatedDuration ? (
-                  <span className="text-[#237A57] dark:text-[#6DD6A0] font-bold text-xs">{estimatedDuration} min ({Math.floor(estimatedDuration / 60)}h {estimatedDuration % 60}m)</span>
+                  <span className="text-[#237A57] dark:text-[#6DD6A0] font-bold text-xs">
+                    {estimatedDuration} min ({Math.floor(estimatedDuration / 60)}h {estimatedDuration % 60}m)
+                  </span>
                 ) : (
-                  <span className="text-xs text-[#8A9890]">Not estimated</span>
+                  <span className="text-xs text-[#8A9890]">Not estimated (Runs to 23:59)</span>
                 )}
-              </label>
+              </div>
+
               <div className="flex items-center gap-1.5 flex-wrap">
                 {[15, 30, 45, 60, 90, 120].map((mins) => (
                   <button
                     key={mins}
                     type="button"
-                    onClick={() => setEstimatedDuration(estimatedDuration === mins ? undefined : mins)}
+                    onClick={() => handleDurationChange(mins)}
                     className={clsx(
                       'px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer',
                       estimatedDuration === mins
                         ? 'bg-[#5FBF8F] text-white border-[#5FBF8F] shadow-xs'
-                        : 'bg-[#F3FBF7] dark:bg-[#13261C] text-[#66736B] dark:text-[#9BB5A5] border-[#DCE9E1] dark:border-[#20372B] hover:border-[#5FBF8F]'
+                        : 'bg-white dark:bg-[#0E1C15] text-[#66736B] dark:text-[#9BB5A5] border-[#DCE9E1] dark:border-[#20372B] hover:border-[#5FBF8F]'
                     )}
                   >
                     {mins >= 60 ? `${mins / 60}h` : `${mins}m`}
@@ -530,9 +628,22 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   step="5"
                   placeholder="Custom min"
                   value={estimatedDuration || ''}
-                  onChange={(e) => setEstimatedDuration(e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-24 px-2 py-1 text-xs bg-[#F3FBF7] dark:bg-[#13261C] border border-[#DCE9E1] dark:border-[#20372B] rounded-lg text-[#17211B] dark:text-[#EAF7EF] focus:outline-none focus:border-[#5FBF8F]"
+                  onChange={(e) => handleCustomDurationChange(e.target.value)}
+                  className="w-24 px-2 py-1 text-xs bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] rounded-lg text-[#17211B] dark:text-[#EAF7EF] focus:outline-none focus:border-[#5FBF8F]"
                 />
+              </div>
+
+              {/* Dynamic Auto-Adjust Feedback Banner */}
+              <div className="mt-1 text-[11px] text-[#237A57] dark:text-[#6DD6A0] bg-[#E8F7EF]/70 dark:bg-[#13261C]/80 px-2.5 py-1 rounded-lg flex items-center justify-between border border-[#5FBF8F]/20">
+                {estimatedDuration && estimatedDuration > 0 ? (
+                  <span>
+                    ⚡ <strong>Auto-Adjusted:</strong> Starts at <strong>{startTime}</strong> + {estimatedDuration}m → Due at <strong>{dueTime}</strong>
+                  </span>
+                ) : (
+                  <span>
+                    🌙 <strong>Untimed Task:</strong> Automatically set to end at <strong>23:59 PM</strong> (Day End).
+                  </span>
+                )}
               </div>
             </div>
           </div>

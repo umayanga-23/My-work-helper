@@ -716,41 +716,60 @@ export const TasksPage: React.FC = () => {
     }
   };
 
-  const formatTaskTimeSlot = (dueTime?: string, estimatedDuration?: number): string | null => {
-    if (!dueTime) return null;
-    const cleanTime = dueTime.slice(0, 5);
-    if (!estimatedDuration || estimatedDuration <= 0) {
-      return cleanTime;
+  const formatTaskTimeSlot = (dueTimeOrTask?: string | Task, estimatedDuration?: number): string | null => {
+    if (!dueTimeOrTask) return null;
+    let start: string | null = null;
+    let due: string | null = null;
+
+    if (typeof dueTimeOrTask === 'object') {
+      start = dueTimeOrTask.startTime ? dueTimeOrTask.startTime.slice(0, 5) : null;
+      due = dueTimeOrTask.dueTime ? dueTimeOrTask.dueTime.slice(0, 5) : null;
+    } else {
+      due = dueTimeOrTask.slice(0, 5);
+      if (estimatedDuration && estimatedDuration > 0) {
+        const parts = due.split(':');
+        if (parts.length === 2) {
+          const startH = parseInt(parts[0], 10);
+          const startM = parseInt(parts[1], 10);
+          if (!isNaN(startH) && !isNaN(startM)) {
+            const totalMinutes = startH * 60 + startM + estimatedDuration;
+            const endH = Math.floor(totalMinutes / 60) % 24;
+            const endM = totalMinutes % 60;
+            return `${due} — ${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+          }
+        }
+      }
     }
-    const parts = cleanTime.split(':');
-    if (parts.length !== 2) return cleanTime;
-    const startH = parseInt(parts[0], 10);
-    const startM = parseInt(parts[1], 10);
-    if (isNaN(startH) || isNaN(startM)) return cleanTime;
 
-    const totalMinutes = startH * 60 + startM + estimatedDuration;
-    const endH = Math.floor(totalMinutes / 60) % 24;
-    const endM = totalMinutes % 60;
-    const endClean = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
-
-    return `${cleanTime} — ${endClean}`;
+    if (start && due && due !== '23:59') {
+      return `${formatDisplayTime(start)} — ${formatDisplayTime(due)}`;
+    }
+    if (start && (!due || due === '23:59')) {
+      return `Starts ${formatDisplayTime(start)}`;
+    }
+    if (due && due !== '23:59') {
+      return `Due ${formatDisplayTime(due)}`;
+    }
+    if (due === '23:59') {
+      return 'Due 11:59 PM';
+    }
+    return null;
   };
 
-
   const formatDueDisplay = (task: Task) => {
-    const timeSlot = formatTaskTimeSlot(task.dueTime, task.estimatedDuration);
-    const timeFormatted = timeSlot || (task.dueTime ? formatDisplayTime(task.dueTime) : '');
+    const timeSlot = formatTaskTimeSlot(task);
+    const timeFormatted = timeSlot || '';
     if (isTaskOverdue(task)) {
       if (task.dueDate === todayStr && timeFormatted) {
-        return `Today ${timeFormatted} (Overdue)`;
+        return `Today • ${timeFormatted} (Overdue)`;
       }
-      return `${task.dueDate || 'Past'}${timeFormatted ? ' ' + timeFormatted : ''} (Overdue)`;
+      return `${task.dueDate || 'Past'}${timeFormatted ? ' • ' + timeFormatted : ''} (Overdue)`;
     }
     if (task.dueDate === todayStr || task.dueDate?.startsWith(todayStr)) {
-      return timeFormatted ? `Today ${timeFormatted}` : 'Today';
+      return timeFormatted ? `Today • ${timeFormatted}` : 'Today';
     }
     if (task.dueDate) {
-      return `${task.dueDate}${timeFormatted ? ' ' + timeFormatted : ''}`;
+      return `${task.dueDate}${timeFormatted ? ' • ' + timeFormatted : ''}`;
     }
     return 'No due date';
   };
@@ -824,11 +843,27 @@ export const TasksPage: React.FC = () => {
 
   const isForToday = (t: Task) =>
     t.dueDate === todayStr ||
-    t.dueDate?.startsWith(todayStr);
+    t.dueDate?.startsWith(todayStr) ||
+    t.startDate === todayStr ||
+    Boolean(t.startDate && t.startDate <= todayStr && t.dueDate && t.dueDate >= todayStr);
+
+  const isTaskArchivedCompleted = (t: Task) => {
+    if (t.status !== 'COMPLETED') return false;
+    if (t.completedAt) {
+      const d = new Date(t.completedAt);
+      const now = new Date();
+      const isToday =
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate();
+      return !isToday;
+    }
+    return Boolean(t.dueDate && t.dueDate < todayStr);
+  };
 
   // Tab counters based strictly on Daily Tasks
   const overdueDailyTasks = dailyTasks.filter((t) => isTaskOverdue(t));
-  const todayDailyTasks = dailyTasks.filter((t) => isForToday(t));
+  const todayDailyTasks = dailyTasks.filter((t) => isForToday(t) && (!isTaskArchivedCompleted(t) || t.status !== 'COMPLETED'));
   const inProgressDailyTasks = dailyTasks.filter((t) => t.status === 'IN_PROGRESS' || t.status === 'TODO');
   const completedDailyTasks = dailyTasks.filter((t) => t.status === 'COMPLETED');
   const completedTodayDailyTasks = dailyTasks.filter((t) => isTaskCompletedToday(t));
@@ -845,6 +880,7 @@ export const TasksPage: React.FC = () => {
       if (!matchTitle && !matchDesc && !matchSub) return false;
     }
     if (activeTab === 'TODAY') {
+      if (task.status === 'COMPLETED' && isTaskArchivedCompleted(task)) return false;
       return isForToday(task);
     }
     if (activeTab === 'OVERDUE') {
@@ -863,7 +899,10 @@ export const TasksPage: React.FC = () => {
       }
       return true;
     }
-    // When activeTab === 'ALL', return all daily tasks without losing any
+    // When activeTab === 'ALL', keep daily view clean by archiving past completed tasks
+    if (task.status === 'COMPLETED' && isTaskArchivedCompleted(task)) {
+      return false;
+    }
     return true;
   });
 
@@ -1131,11 +1170,11 @@ export const TasksPage: React.FC = () => {
                     <Clock className={clsx('w-3.5 h-3.5', isOverdue ? 'text-rose-500' : 'text-amber-500 dark:text-amber-400')} />
                     {isOverdue ? (
                       <span>
-                        Overdue {task.dueTime ? `(${formatTaskTimeSlot(task.dueTime, task.estimatedDuration) || formatDisplayTime(task.dueTime)})` : ''}
+                        Overdue {task.dueTime ? `(${formatTaskTimeSlot(task) || formatDisplayTime(task.dueTime)})` : ''}
                       </span>
-                    ) : task.dueTime ? (
+                    ) : task.dueTime || task.startTime ? (
                       <span className="font-semibold text-[#17211B] dark:text-[#EAF7EF]">
-                        {formatTaskTimeSlot(task.dueTime, task.estimatedDuration)}
+                        {formatTaskTimeSlot(task)}
                       </span>
                     ) : (
                       <span>Today</span>
@@ -1143,7 +1182,7 @@ export const TasksPage: React.FC = () => {
                   </span>
                 ) : (
                   /* Scheduled / Future tasks: show full due date and time slot */
-                  task.dueDate && (
+                  (task.dueDate || task.startDate) && (
                     <span
                       className={clsx(
                         'flex items-center gap-1 font-medium',
@@ -1151,7 +1190,7 @@ export const TasksPage: React.FC = () => {
                       )}
                     >
                       <Clock className={clsx('w-3.5 h-3.5', isOverdue ? 'text-rose-500' : 'text-[#8A9890]')} />
-                      Due {task.dueDate} {task.dueTime ? `at ${formatTaskTimeSlot(task.dueTime, task.estimatedDuration) || formatDisplayTime(task.dueTime)}` : ''}
+                      {task.dueDate || task.startDate} {formatTaskTimeSlot(task) ? `(${formatTaskTimeSlot(task)})` : ''}
                     </span>
                   )
                 )}

@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     priority VARCHAR(50) NOT NULL DEFAULT 'MEDIUM',
     due_date DATE,
     due_time TIME,
+    start_date DATE,
+    start_time TIME,
     completed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

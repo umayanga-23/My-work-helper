@@ -17,6 +17,8 @@ public class TaskRequest {
     private TaskPriority priority = TaskPriority.MEDIUM;
     private LocalDate dueDate;
     private LocalTime dueTime;
+    private LocalDate startDate;
+    private LocalTime startTime;
     private UUID categoryId;
     private UUID projectId;
     private UUID parentTaskId;
@@ -44,6 +46,12 @@ public class TaskRequest {
 
     public LocalTime getDueTime() { return dueTime; }
     public void setDueTime(LocalTime dueTime) { this.dueTime = dueTime; }
+
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+
+    public LocalTime getStartTime() { return startTime; }
+    public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
 
     public UUID getCategoryId() { return categoryId; }
     public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
