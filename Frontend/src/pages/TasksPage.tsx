@@ -1230,51 +1230,67 @@ export const TasksPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Subtasks Accordion Button & Progress Bar (Only for Strategic Goals & Epics) */}
-              {isMainSection && (
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  {subtaskCount > 0 && (
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20" title={`Goal Progress: ${completedSubtasks} of ${subtaskCount} steps completed`}>
-                      <div className="w-14 h-1.5 bg-purple-200 dark:bg-purple-950 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-purple-600 dark:bg-purple-400 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.round((completedSubtasks / subtaskCount) * 100)}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 font-mono">
-                        {Math.round((completedSubtasks / subtaskCount) * 100)}%
-                      </span>
+              {/* Subtasks Accordion Button & Progress Bar (Available for all tasks) */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {subtaskCount > 0 && (
+                  <div
+                    className={clsx(
+                      'flex items-center gap-1.5 px-2 py-0.5 rounded-full border',
+                      isStrategicGoal(task)
+                        ? 'bg-purple-500/10 border-purple-500/20 text-purple-700 dark:text-purple-300'
+                        : 'bg-[#E8F7EF] dark:bg-[#13261C] border-[#5FBF8F]/30 text-[#237A57] dark:text-[#6DD6A0]'
+                    )}
+                    title={`Progress: ${completedSubtasks} of ${subtaskCount} subtasks completed`}
+                  >
+                    <div className="w-12 h-1.5 bg-[#DCE9E1] dark:bg-[#20372B] rounded-full overflow-hidden">
+                      <div
+                        className={clsx(
+                          'h-full rounded-full transition-all duration-300',
+                          isStrategicGoal(task) ? 'bg-purple-600 dark:bg-purple-400' : 'bg-[#5FBF8F] dark:bg-[#6DD6A0]'
+                        )}
+                        style={{ width: `${Math.round((completedSubtasks / subtaskCount) * 100)}%` }}
+                      />
                     </div>
+                    <span className="text-[10px] font-bold font-mono">
+                      {Math.round((completedSubtasks / subtaskCount) * 100)}%
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSubtasksExpand(task.id);
+                  }}
+                  className={clsx(
+                    'text-xs font-semibold hover:underline flex items-center gap-1 cursor-pointer transition-colors',
+                    isStrategicGoal(task) ? 'text-purple-600 dark:text-purple-400' : 'text-[#237A57] dark:text-[#6DD6A0]'
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleSubtasksExpand(task.id);
-                    }}
-                    className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <ListTodo className="w-3.5 h-3.5" />
-                    {subtaskCount > 0 ? `${completedSubtasks}/${subtaskCount} Steps` : '+ Steps'}
-                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDecomposeTask(task);
-                    }}
-                    className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-1 cursor-pointer border border-purple-500/20"
-                    title="AI Auto-Break Down into Subtasks"
-                  >
-                    <Sparkles className="w-3 h-3 text-purple-500" /> AI Breakdown
-                  </button>
-                </div>
-              )}
+                >
+                  <ListTodo className="w-3.5 h-3.5" />
+                  <span>{subtaskCount > 0 ? `${completedSubtasks}/${subtaskCount} Subtasks` : '+ Subtasks'}</span>
+                  {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDecomposeTask(task);
+                  }}
+                  className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all flex items-center gap-1 cursor-pointer border border-purple-500/20"
+                  title="AI Auto-Break Down into Subtasks"
+                >
+                  <Sparkles className="w-3 h-3 text-purple-500" /> AI Breakdown
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Subtasks Expanded Panel (Only for Strategic Goals & Epics) */}
-        {isMainSection && isExpanded && (
+        {/* Subtasks Expanded Panel (Available for all tasks) */}
+        {isExpanded && (
           <div className="px-5 pb-4 pt-2 bg-[#F3FBF7]/50 dark:bg-[#13261C]/30 border-t border-[#DCE9E1] dark:border-[#20372B] space-y-3">
             {task.subtasks && task.subtasks.length > 0 ? (
               <div className="space-y-2">
@@ -1284,11 +1300,19 @@ export const TasksPage: React.FC = () => {
                   return (
                     <div
                       key={sub.id}
-                      className="p-2.5 rounded-xl bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] flex items-center justify-between gap-3 shadow-2xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailTask(sub);
+                      }}
+                      className="p-2.5 rounded-xl bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] hover:border-[#5FBF8F]/40 flex items-center justify-between gap-3 shadow-2xs group/sub transition-all"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <button
-                          onClick={() => handleToggleSubtaskStatus(task.id, sub)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleSubtaskStatus(task.id, sub);
+                          }}
                           className={clsx(
                             'w-4 h-4 rounded border flex items-center justify-center transition-all cursor-pointer shrink-0',
                             subDone
@@ -1313,7 +1337,7 @@ export const TasksPage: React.FC = () => {
                       <div className="flex items-center gap-2 shrink-0">
                         {sub.dueTime && (
                           <span className="text-[10px] text-[#66736B] dark:text-[#9BB5A5] font-mono font-medium">
-                            {formatTaskTimeSlot(sub.dueTime, sub.estimatedDuration)}
+                            {formatTaskTimeSlot(sub)}
                           </span>
                         )}
                         {sub.estimatedDuration && !sub.dueTime && (
@@ -1323,17 +1347,32 @@ export const TasksPage: React.FC = () => {
                         )}
                         {isSubToday ? (
                           <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] flex items-center gap-1 border border-[#5FBF8F]/30" title="Already scheduled for today's execution">
-                            <Sun className="w-3 h-3 text-amber-500" /> Already planned for today
+                            <Sun className="w-3 h-3 text-amber-500" /> Today
                           </span>
                         ) : (
                           <button
-                            onClick={() => handleRescheduleToToday(sub.id)}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRescheduleToToday(sub.id);
+                            }}
                             className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-[#F3FBF7] dark:bg-[#13261C] text-[#66736B] dark:text-[#9BB5A5] hover:text-[#237A57] hover:bg-[#E8F7EF] transition-all flex items-center gap-1 cursor-pointer"
                             title="Add to Today's Execution"
                           >
                             <Sun className="w-3 h-3 text-amber-500" /> Do Today
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTask(sub.id);
+                          }}
+                          className="opacity-0 group-hover/sub:opacity-100 p-1 text-[#8A9890] hover:text-rose-500 transition-all rounded cursor-pointer"
+                          title="Delete subtask"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -1344,24 +1383,32 @@ export const TasksPage: React.FC = () => {
             )}
 
             {/* Inline Add Subtask Input */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-1">
               <input
                 type="text"
                 value={newSubtaskTitle[task.id] || ''}
                 onChange={(e) =>
                   setNewSubtaskTitle((prev) => ({ ...prev, [task.id]: e.target.value }))
                 }
+                onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddSubtask(task.id);
+                  if (e.key === 'Enter') {
+                    e.stopPropagation();
+                    handleAddSubtask(task.id);
+                  }
                 }}
                 placeholder="Add a new subtask (e.g. Write integration test) and press Enter..."
                 className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-[#0E1C15] border border-[#DCE9E1] dark:border-[#20372B] rounded-xl text-[#17211B] dark:text-[#EAF7EF] placeholder-[#8A9890] outline-none focus:border-[#5FBF8F]"
               />
               <button
-                onClick={() => handleAddSubtask(task.id)}
-                className="px-3 py-1.5 text-xs font-semibold bg-[#237A57] hover:bg-[#5FBF8F] text-white rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddSubtask(task.id);
+                }}
+                className="px-3.5 py-1.5 text-xs font-semibold bg-[#237A57] hover:bg-[#5FBF8F] text-white rounded-xl transition-all shadow-xs flex items-center gap-1 cursor-pointer shrink-0"
               >
-                <Plus className="w-3.5 h-3.5" /> Add
+                <Plus className="w-3.5 h-3.5" /> Add Step
               </button>
             </div>
           </div>
