@@ -660,15 +660,7 @@ export const TasksPage: React.FC = () => {
 
   const formatDisplayTime = (timeStr?: string) => {
     if (!timeStr) return '';
-    const clean = timeStr.slice(0, 5);
-    const parts = clean.split(':');
-    if (parts.length !== 2) return clean;
-    const hours = parseInt(parts[0], 10);
-    const minutes = parts[1];
-    if (isNaN(hours)) return clean;
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const h12 = hours % 12 === 0 ? 12 : hours % 12;
-    return `${h12}:${minutes} ${period}`;
+    return timeStr.slice(0, 5); // 24-hour format (e.g. 20:00, 05:00, 23:59)
   };
 
   const priorityBadgeClass = (priority: TaskPriority) => {
@@ -751,7 +743,7 @@ export const TasksPage: React.FC = () => {
       return `Due ${formatDisplayTime(due)}`;
     }
     if (due === '23:59') {
-      return 'Due 11:59 PM';
+      return 'Due 23:59';
     }
     return null;
   };

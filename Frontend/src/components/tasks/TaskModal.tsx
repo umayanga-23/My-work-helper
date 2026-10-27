@@ -519,7 +519,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   onClick={() => setQuickDate(1)}
                   className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-[#E8F7EF] dark:bg-[#13261C] text-[#237A57] dark:text-[#6DD6A0] hover:bg-[#5FBF8F] hover:text-white transition-all cursor-pointer shadow-2xs"
                 >
-                  Tomorrow (5 AM)
+                  Tomorrow (05:00)
                 </button>
                 <button
                   type="button"
@@ -540,7 +540,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     <Clock className="w-3 h-3 text-[#5FBF8F]" />
                     Start Time
                   </span>
-                  <span className="text-[10px] text-[#8A9890]">Day starts 05:00 AM</span>
+                  <span className="text-[10px] text-[#8A9890]">Day starts 05:00</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -571,7 +571,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     <Target className="w-3 h-3 text-[#5FBF8F]" />
                     Due Deadline
                   </span>
-                  <span className="text-[10px] text-[#8A9890]">Default 23:59 PM</span>
+                  <span className="text-[10px] text-[#8A9890]">Default 23:59</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -641,7 +641,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   </span>
                 ) : (
                   <span>
-                    🌙 <strong>Untimed Task:</strong> Automatically set to end at <strong>23:59 PM</strong> (Day End).
+                    🌙 <strong>Untimed Task:</strong> Automatically set to end at <strong>23:59</strong> (Day End).
                   </span>
                 )}
               </div>
